@@ -1,0 +1,1537 @@
+******************************************************************************
+                  TI ARM Linker PC v20.2.1                     
+******************************************************************************
+>> Linked Tue Oct 27 19:42:35 2020
+
+OUTPUT FILE NAME:   <rfEchoTx_CC1310_LAUNCHXL_nortos_ccs.out>
+ENTRY POINT SYMBOL: "resetISR"  address: 0000805d
+
+
+MEMORY CONFIGURATION
+
+         name            origin    length      used     unused   attr    fill
+----------------------  --------  ---------  --------  --------  ----  --------
+  FLASH                 00000000   00020000  00009460  00016ba0  R  X
+  SRAM                  20000000   00005000  00001d25  000032db  RW X
+
+
+SEGMENT ALLOCATION MAP
+
+run origin  load origin   length   init length attrs members
+----------  ----------- ---------- ----------- ----- -------
+00000000    00000000    00009278   00009278    r-x
+  00000000    00000000    000000c8   000000c8    r-- .intvecs
+  000000c8    000000c8    00008360   00008360    r-x .text
+  00008428    00008428    00000e50   00000e50    r-- .const
+00009278    00009278    00000008   00000008    rw-
+  00009278    00009278    00000008   00000008    rw- .args
+00009280    00009280    00000188   00000188    r--
+  00009280    00009280    00000188   00000188    r-- .cinit
+0001ffa8    0001ffa8    00000058   00000058    r--
+  0001ffa8    0001ffa8    00000058   00000058    r-- .ccfg
+20000000    20000000    000001c8   00000000    rw-
+  20000000    20000000    00000100   00000000    rw- .sysmem
+  20000100    20000100    000000c8   00000000    rw- .vtable_ram
+20000430    20000430    00000010   00000000    rw-
+  20000430    20000430    00000010   00000000    rw- .TI.bound:dmaSpi0RxControlTableEntry
+20000440    20000440    00000010   00000000    rw-
+  20000440    20000440    00000010   00000000    rw- .TI.bound:dmaSpi0TxControlTableEntry
+20000500    20000500    00000010   00000000    rw-
+  20000500    20000500    00000010   00000000    rw- .TI.bound:dmaSpi1RxControlTableEntry
+20000510    20000510    0000172d   00000000    rw-
+  20000510    20000510    00000010   00000000    rw- .TI.bound:dmaSpi1TxControlTableEntry
+  20000520    20000520    000011a8   00000000    rw- .bss
+  200016c8    200016c8    00000575   00000000    rw- .data
+20004c00    20004c00    00000400   00000000    rw-
+  20004c00    20004c00    00000400   00000000    rw- .stack
+
+
+SECTION ALLOCATION MAP
+
+ output                                  attributes/
+section   page    origin      length       input sections
+--------  ----  ----------  ----------   ----------------
+.intvecs   0    00000000    000000c8     
+                  00000000    000000c8     nortos_cc13x0.aem3 : startup_cc13xx_cc26xx_ccs.oem3 (.intvecs)
+
+.text      0    000000c8    00008360     
+                  000000c8    0000048c     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_fsmActiveState)
+                  00000554    000003a4     rfEchoTx.obj (.text:sdSetup)
+                  000008f8    0000030c     drivers_cc13x0.aem3 : PowerCC26XX_calibrateRCOSC.oem3 (.text:PowerCC26XX_auxISR)
+                  00000c04    000002dc     nortos_cc13x0.aem3 : SystemP_nortos.oem3 (.text:doPrint)
+                  00000ee0    00000274     rfEchoTx.obj (.text:mainThread)
+                  00001154    00000238     driverlib.lib : sys_ctrl.obj (.text:NOROM_SysCtrlSetRechargeBeforePowerDown)
+                  0000138c    00000238     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_transfer)
+                  000015c4    00000224                         : PowerCC26XX.oem3 (.text:Power_sleep)
+                  000017e8    000001d8     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_open)
+                  000019c0    000001b6     rtsv7M3_T_le_eabi.lib : fd_add_t2.asm.obj (.text)
+                  00001b76    00000002     display.aem3 : DisplayUart.oem3 (.text:DisplayUartMin_clear)
+                  00001b78    000001b4     drivers_cc13x0.aem3 : SDSPI.oem3 (.text:SDSPI_initialize)
+                  00001d2c    000001b0                         : PINCC26XX.oem3 (.text:PIN_init)
+                  00001edc    00000194     rfEchoTx.obj (.text:echoCallback)
+                  00002070    00000190     drivers_cc13x0.aem3 : PowerCC26XX_calibrateRCOSC.oem3 (.text:PowerCC26XX_doCalibrate)
+                  00002200    00000164                         : UARTCC26XX.oem3 (.text:UARTCC26XX_open)
+                  00002364    00000158                         : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_initIO)
+                  000024bc    00000154     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_fsmSetupState)
+                  00002610    00000148     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:UARTCC26XX_hwiIntFxn)
+                  00002758    00000136                         : UARTCC26XX.oem3 (.text:UARTCC26XX_read)
+                  0000288e    00000002     display.aem3 : DisplayUart.oem3 (.text:DisplayUartMin_clearLines)
+                  00002890    00000128     smartrf_settings.obj (.text:rf_patch_rfe_genfsk)
+                  000029b8    00000124     driverlib.lib : setup_rom.obj (.text:NOROM_SetupAfterColdResetWakeupFromShutDownCfg3)
+                  00002adc    00000124     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_dispatchNextCmd)
+                  00002c00    0000011c     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_open)
+                  00002d1c    00000118     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_radioOpDoneCb)
+                  00002e34    00000114     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:Power_init)
+                  00002f48    00000110                         : GPIOCC26XX.oem3 (.text:GPIO_setConfig)
+                  00003058    0000010c                         : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_configDMA)
+                  00003164    00000108     rtsv7M3_T_le_eabi.lib : memory.c.obj (.text:aligned_alloc)
+                  0000326c    00000100     nortos_cc13x0.aem3 : PowerCC26XX_nortos.oem3 (.text:PowerCC26XX_standbyPolicy)
+                  0000336c    000000fc     rtsv7M3_T_le_eabi.lib : fd_mul_t2.asm.obj (.text)
+                  00003468    000000f0     driverlib.lib : setup_rom.obj (.text:NOROM_SetupAfterColdResetWakeupFromShutDownCfg2)
+                  00003558    000000f0     drivers_cc13x0.aem3 : PINCC26XX.oem3 (.text:PINCC26XX_setIoCfg)
+                  00003648    000000e8     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_fsmPowerUpState)
+                  00003730    000000e8     rtsv7M3_T_le_eabi.lib : memory.c.obj (.text:free)
+                  00003818    000000e4     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_transferCancel)
+                  000038fc    000000e2                         : UARTCC26XX.oem3 (.text:UARTCC26XX_write)
+                  000039de    00000002     display.aem3 : DisplayUart.oem3 (.text:DisplayUartMin_init)
+                  000039e0    000000e0     RFQueue.obj (.text:RFQueue_defineQueue)
+                  00003ac0    000000d8     nortos_cc13x0.aem3 : SwiP_nortos.oem3 (.text:SwiP_construct)
+                  00003b98    000000d4     driverlib.lib : rfc.obj (.text:NOROM_RFCRfTrimRead)
+                  00003c6c    000000d4     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_pendCmd)
+                  00003d40    000000cc     driverlib.lib : rfc.obj (.text:NOROM_RFCRTrim)
+                  00003e0c    000000cc     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_swiHw)
+                  00003ed8    000000c8     driverlib.lib : setup.obj (.text:TrimAfterColdResetWakeupFromShutDown)
+                  00003fa0    000000c4     drivers_cc13x0.aem3 : SDSPI.oem3 (.text:SDSPI_write)
+                  00004064    000000bc                         : PowerCC26XX.oem3 (.text:Power_releaseDependency)
+                  00004120    000000b8     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_postCmd)
+                  000041d8    000000b4     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:Power_setDependency)
+                  0000428c    000000b0     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_hwiCpe0Active)
+                  0000433c    000000b0     nortos_cc13x0.aem3 : TimerPCC26XX_nortos.oem3 (.text:TimerP_construct)
+                  000043ec    000000a8                        : ClockPTimer_nortos.oem3 (.text:ClockP_workFuncDynamic)
+                  00004494    000000a8     drivers_cc13x0.aem3 : GPIOCC26XX.oem3 (.text:GPIO_init)
+                  0000453c    000000a8     driverlib.lib : setup.obj (.text:NOROM_SetupTrimDevice)
+                  000045e4    000000a8     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_ratRestartChannels)
+                  0000468c    000000a4     driverlib.lib : setup_rom.obj (.text:NOROM_SetupAfterColdResetWakeupFromShutDownCfg1)
+                  00004730    000000a4     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:UARTCC26XX_initHw)
+                  000047d4    000000a4                         : PowerCC26XX.oem3 (.text:switchXOSCHFclockFunc)
+                  00004878    000000a2                         : SDSPI.oem3 (.text:SDSPI_getNumSectors)
+                  0000491a    00000002     driverlib.lib : interrupt.obj (.text:IntDefaultHandler)
+                  0000491c    000000a0     drivers_cc13x0.aem3 : PINCC26XX.oem3 (.text:PIN_open)
+                  000049bc    000000a0                         : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_hwiFxn)
+                  00004a5c    000000a0     nortos_cc13x0.aem3 : SwiP_nortos.oem3 (.text:SwiP_dispatch)
+                  00004afc    0000009c                        : ClockPTimer_nortos.oem3 (.text:ClockP_startup)
+                  00004b98    0000009c     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_calculateDispatchTime)
+                  00004c34    0000009c     drivers_cc13x0.aem3 : SDSPI.oem3 (.text:SDSPI_read)
+                  00004cd0    0000009c     rtsv7M3_T_le_eabi.lib : memcpy_t2.asm.obj (.text)
+                  00004d6c    00000098     nortos_cc13x0.aem3 : SemaphoreP_nortos.oem3 (.text:SemaphoreP_pend)
+                  00004e04    00000098     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:UARTCC26XX_initIO)
+                  00004e9c    00000098     smartrf_settings.obj (.text:configureGenfskPatch)
+                  00004f34    00000096     rtsv7M3_T_le_eabi.lib : ull_div_t2.asm.obj (.text)
+                  00004fca    00000092     drivers_cc13x0.aem3 : SDSPI.oem3 (.text:sendCmd)
+                  0000505c    00000090                         : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_control)
+                  000050ec    0000008e                         : UARTCC26XX.oem3 (.text:UARTCC26XX_writeCancel)
+                  0000517a    0000008c                         : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_swiFxn)
+                  00005206    00000086     rtsv7M3_T_le_eabi.lib : fd_cmp_t2.asm.obj (.text:__aeabi_cdcmple)
+                  0000528c    00000084     CC1310_LAUNCHXL_fxns.obj (.text:CC1310_LAUNCHXL_sendExtFlashByte)
+                  00005310    00000084     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_issueRadioFreeCb)
+                  00005394    00000084     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:UARTCC26XX_close)
+                  00005418    00000080     nortos_cc13x0.aem3 : ClockPTimer_nortos.oem3 (.text:ClockP_start)
+                  00005498    00000080     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:writeTxFifoFlush)
+                  00005518    0000007c     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_ratFreeChannel)
+                  00005594    0000007c     drivers_cc13x0.aem3 : SDSPI.oem3 (.text:recvDataBlock)
+                  00005610    0000007a     rtsv7M3_T_le_eabi.lib : memset_t2.asm.obj (.text)
+                  0000568a    00000002     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_defaultCallback)
+                  0000568c    00000078     nortos_cc13x0.aem3 : HwiPCC26XX_nortos.oem3 (.text:HwiP_construct)
+                  00005704    00000078     drivers_cc13x0.aem3 : SDSPI.oem3 (.text:transmitDataBlock)
+                  0000577c    00000074     nortos_cc13x0.aem3 : ClockPTimer_nortos.oem3 (.text:ClockP_walkQueueDynamic)
+                  000057f0    00000074     driverlib.lib : setup_rom.obj (.text:NOROM_SetupSetVddrLevel)
+                  00005864    00000070     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_hwiHw)
+                  000058d4    00000070     nortos_cc13x0.aem3 : TimerPCC26XX_nortos.oem3 (.text:TimerP_start)
+                  00005944    00000070     rtsv7M3_T_le_eabi.lib : memory.c.obj (.text:split)
+                  000059b4    0000006d     nortos_cc13x0.aem3 : SystemP_nortos.oem3 (.text:formatNum)
+                  00005a21    00000001     --HOLE-- [fill = 0]
+                  00005a22    00000002                        : SemaphoreP_nortos.oem3 (.text:SemaphoreP_destruct)
+                  00005a24    0000006c     drivers_cc13x0.aem3 : PowerCC26XX_calibrateRCOSC.oem3 (.text:PowerCC26XX_initiateCalibration)
+                  00005a90    0000006c     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_initRadioSetup)
+                  00005afc    00000068     driverlib.lib : setup_rom.obj (.text:NOROM_SetupGetTrimForAmpcompCtrl)
+                  00005b64    00000068                   : setup_rom.obj (.text:NOROM_SetupGetTrimForAnabypassValue1)
+                  00005bcc    00000068                   : sys_ctrl.obj (.text:NOROM_SysCtrlAdjustRechargeAfterPowerDown)
+                  00005c34    00000068                   : sys_ctrl.obj (.text:NOROM_SysCtrl_DCDC_VoltageConditionalControl)
+                  00005c9c    00000068     drivers_cc13x0.aem3 : PINCC26XX.oem3 (.text:PIN_add)
+                  00005d04    00000068                         : SDSPI.oem3 (.text:SDSPI_open)
+                  00005d6c    00000068     nortos_cc13x0.aem3 : SwiP_nortos.oem3 (.text:SwiP_post)
+                  00005dd4    00000068     rtsv7M3_T_le_eabi.lib : copy_decompress_lzss.c.obj (.text:decompress:lzss:__TI_decompress_lzss)
+                  00005e3c    00000068     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:lfClockReadyCallback)
+                  00005ea4    00000064     driverlib.lib : osc.obj (.text:NOROM_OSCHF_AttemptToSwitchToXosc)
+                  00005f08    00000064     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_dispatchNextEvent)
+                  00005f6c    00000064     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:configureXOSCHF)
+                  00005fd0    00000060     driverlib.lib : osc.obj (.text:NOROM_OSCClockSourceSet)
+                  00006030    00000060     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:PowerCC26XX_calibrate)
+                  00006090    00000060     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_getCurrentTime)
+                  000060f0    00000060     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:UARTCC26XX_control)
+                  00006150    0000005e                         : UARTCC26XX.oem3 (.text:UARTCC26XX_swiIntFxn)
+                  000061ae    00000002     rtsv7M3_T_le_eabi.lib : _lock.c.obj (.text:_nop)
+                  000061b0    0000005c     display.aem3 : Display.oem3 (.text:Display_doOpen)
+                  0000620c    0000005c     drivers_cc13x0.aem3 : PowerCC26XX_calibrateRCOSC.oem3 (.text:PowerCC26XX_RCOSC_clockFunc)
+                  00006268    0000005c     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_hwiCpe0PowerFsm)
+                  000062c4    0000005c                              : RFCC26XX_multiMode.oem3 (.text:RF_syncCb)
+                  00006320    0000005c     drivers_cc13x0.aem3 : UDMACC26XX.oem3 (.text:UDMACC26XX_open)
+                  0000637c    00000058                         : PINCC26XX.oem3 (.text:PIN_remove)
+                  000063d4    00000058     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_cmdDispatchTime)
+                  0000642c    00000058     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_initHw)
+                  00006484    00000054                         : GPIOCC26XX.oem3 (.text:GPIO_write)
+                  000064d8    00000054     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_applyRfCorePatch)
+                  0000652c    00000052     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_close)
+                  0000657e    00000002     nortos_cc13x0.aem3 : SemaphoreP_nortos.oem3 (.text:clkFxn)
+                  00006580    00000050     driverlib.lib : setup_rom.obj (.text:NOROM_SetupSetCacheModeAccordingToCcfgSetting)
+                  000065d0    00000050     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_fsmXOSCState)
+                  00006620    00000050                              : RFCC26XX_multiMode.oem3 (.text:RF_wakeupNotification)
+                  00006670    00000050     nortos_cc13x0.aem3 : SemaphoreP_nortos.oem3 (.text:SemaphoreP_construct)
+                  000066c0    00000050     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:startTxFifoEmptyClk)
+                  00006710    00000050                         : SDSPI.oem3 (.text:waitUntilReady)
+                  00006760    0000004c     CC1310_LAUNCHXL_fxns.obj (.text:CC1310_LAUNCHXL_wakeUpExtFlash)
+                  000067ac    0000004a     display.aem3 : DisplayUart.oem3 (.text:DisplayUartMin_open)
+                  000067f6    0000004a     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:UARTCC26XX_readCancel)
+                  00006840    00000048     nortos_cc13x0.aem3 : ClockPTimer_nortos.oem3 (.text:ClockP_construct)
+                  00006888    00000048     drivers_cc13x0.aem3 : PINCC26XX.oem3 (.text:PIN_setOutputEnable)
+                  000068d0    00000048     rtsv7M3_T_le_eabi.lib : fd_toi_t2.asm.obj (.text)
+                  00006918    00000048     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:writeFinishedDoCallback)
+                  00006960    00000046     display.aem3 : DisplayUart.oem3 (.text:DisplayUartMin_vprintf)
+                  000069a6    00000044     drivers_cc13x0.aem3 : RingBuf.oem3 (.text:RingBuf_put)
+                  000069ea    00000002                         : PowerCC26XX.oem3 (.text:emptyClockFunc)
+                  000069ec    00000044                         : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_csnCallback)
+                  00006a30    00000044     nortos_cc13x0.aem3 : SwiP_nortos.oem3 (.text:SwiP_restore)
+                  00006a74    00000044     rtsv7M3_T_le_eabi.lib : autoinit.c.obj (.text:__TI_auto_init_nobinit_nopinit:__TI_auto_init_nobinit_nopinit)
+                  00006ab8    00000044                           : fd_tou_t2.asm.obj (.text)
+                  00006afc    00000040     CC1310_LAUNCHXL_fxns.obj (.text:CC1310_LAUNCHXL_shutDownExtFlash)
+                  00006b3c    00000040     driverlib.lib : chipinfo.obj (.text:NOROM_ChipInfo_GetHwRevision)
+                  00006b7c    00000040     drivers_cc13x0.aem3 : PINCC26XX.oem3 (.text:PINCC26XX_getConfig)
+                  00006bbc    00000040                         : PINCC26XX.oem3 (.text:PIN_swi)
+                  00006bfc    00000040                         : SD.oem3 (.text:SD_init)
+                  00006c3c    00000040                         : SD.oem3 (.text:SD_open)
+                  00006c7c    00000040                         : SPI.oem3 (.text:SPI_init)
+                  00006cbc    00000040                         : SPI.oem3 (.text:SPI_open)
+                  00006cfc    00000040                         : UART.oem3 (.text:UART_init)
+                  00006d3c    00000040                         : UART.oem3 (.text:UART_open)
+                  00006d7c    00000040     rtsv7M3_T_le_eabi.lib : u_divt2.asm.obj (.text)
+                  00006dbc    0000003e     drivers_cc13x0.aem3 : RingBuf.oem3 (.text:RingBuf_get)
+                  00006dfa    00000002     smartrf_settings.obj (.text:enterGenfskSysPatch)
+                  00006dfc    0000003c     drivers_cc13x0.aem3 : GPIOCC26XX.oem3 (.text:GPIO_setCallback)
+                  00006e38    0000003c     driverlib.lib : osc.obj (.text:NOROM_OSC_HPOSCRelativeFrequencyOffsetGet)
+                  00006e74    0000003c                   : rfc.obj (.text:NOROM_RFCSynthPowerDown)
+                  00006eb0    0000003c     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:PowerCC26XX_isStableXOSC_HF)
+                  00006eec    0000003c     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_cmdGet)
+                  00006f28    0000003c                              : RFCC26XX_multiMode.oem3 (.text:RF_cmdStoreEvents)
+                  00006f64    0000003c     nortos_cc13x0.aem3 : SemaphoreP_nortos.oem3 (.text:SemaphoreP_post)
+                  00006fa0    0000003c     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:disableLfClkQualifiersEnableClkLoss)
+                  00006fdc    00000038                         : PINCC26XX.oem3 (.text:PIN_setConfig)
+                  00007014    00000038                         : PINCC26XX.oem3 (.text:PIN_setInterrupt)
+                  0000704c    00000038                         : PINCC26XX.oem3 (.text:PIN_setOutputValue)
+                  00007084    00000038     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_checkCmdFsError)
+                  000070bc    00000038                              : RFCC26XX_multiMode.oem3 (.text:RF_powerConstraintRelease)
+                  000070f4    00000038     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:readData)
+                  0000712c    00000038                         : UARTCC26XX.oem3 (.text:writeData)
+                  00007164    00000036     nortos_cc13x0.aem3 : TimerPCC26XX_nortos.oem3 (.text:TimerP_setNextTick)
+                  0000719a    00000036     drivers_cc13x0.aem3 : UDMACC26XX.oem3 (.text:UDMACC26XX_close)
+                  000071d0    00000034     nortos_cc13x0.aem3 : ClockPTimer_nortos.oem3 (.text:ClockP_getTicksUntilInterrupt)
+                  00007204    00000034     driverlib.lib : interrupt.obj (.text:NOROM_IntRegister)
+                  00007238    00000034                   : osc.obj (.text:NOROM_OSCHF_SwitchToRcOscTurnOffXosc)
+                  0000726c    00000034     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:Power_releaseConstraint)
+                  000072a0    00000034     nortos_cc13x0.aem3 : SwiP_nortos.oem3 (.text:SwiP_destruct)
+                  000072d4    00000034                        : TimerPCC26XX_nortos.oem3 (.text:TimerP_initDevice)
+                  00007308    00000034     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:notify)
+                  0000733c    00000030                         : GPIOCC26XX.oem3 (.text:GPIO_hwiIntFxn)
+                  0000736c    00000030     driverlib.lib : chipinfo.obj (.text:NOROM_ChipInfo_GetChipType)
+                  0000739c    00000030                   : setup_rom.obj (.text:NOROM_SetupSetAonRtcSubSecInc)
+                  000073cc    00000030     drivers_cc13x0.aem3 : PINCC26XX.oem3 (.text:PINCC26XX_setMux)
+                  000073fc    00000030                         : PowerCC26XX.oem3 (.text:Power_setConstraint)
+                  0000742c    00000030     nortos_cc13x0.aem3 : TimerPCC26XX_nortos.oem3 (.text:TimerP_getCurrentTick)
+                  0000745c    00000030                        : TimerPCC26XX_nortos.oem3 (.text:TimerP_setThreshold)
+                  0000748c    00000030     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:readData2RingBuf)
+                  000074bc    0000002e     rtsv7M3_T_le_eabi.lib : i_tofd_t2.asm.obj (.text)
+                  000074ea    00000002     nortos_cc13x0.aem3 : startup_cc13xx_cc26xx_ccs.oem3 (.text:faultISR)
+                  000074ec    0000002c                        : HwiPCC26XX_nortos.oem3 (.text:HwiP_dispatch)
+                  00007518    0000002c     driverlib.lib : ddi.obj (.text:NOROM_DDI32RegWrite)
+                  00007544    0000002c                   : osc.obj (.text:NOROM_OSCClockSourceGet)
+                  00007570    0000002c                   : rfc.obj (.text:NOROM_RFCCpePatchReset)
+                  0000759c    0000002c                   : setup_rom.obj (.text:NOROM_SetupGetTrimForRadcExtCfg)
+                  000075c8    0000002c     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_calculateDeltaTimeUs)
+                  000075f4    0000002c                              : RFCC26XX_multiMode.oem3 (.text:RF_executeDirectImmediateCmd)
+                  00007620    0000002a     display.aem3 : Display.oem3 (.text:Display_doPrintf)
+                  0000764a    00000002     nortos_cc13x0.aem3 : startup_cc13xx_cc26xx_ccs.oem3 (.text:intDefaultHandler)
+                  0000764c    00000028                        : ClockPTimer_nortos.oem3 (.text:ClockP_getSystemTicks)
+                  00007674    00000028     display.aem3 : Display.oem3 (.text:Display_doInit)
+                  0000769c    00000028     driverlib.lib : aon_batmon.obj (.text:NOROM_AONBatMonTemperatureGetDegC)
+                  000076c4    00000028                   : rfc.obj (.text:NOROM_RFCDoorbellSendTo)
+                  000076ec    00000028                   : rfc.obj (.text:NOROM_RFCOverrideSearch)
+                  00007714    00000028     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:Power_registerNotify)
+                  0000773c    00000028     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_runCmd)
+                  00007764    00000028     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_flushFifos)
+                  0000778c    00000028     driverlib.lib : adi.obj (.text:SafeHapiVoid)
+                  000077b4    00000028     rtsv7M3_T_le_eabi.lib : memory.c.obj (.text:free_list_insert)
+                  000077dc    00000024     nortos_cc13x0.aem3 : ClockPTimer_nortos.oem3 (.text:ClockP_getTicks)
+                  00007800    00000024                        : ClockPTimer_nortos.oem3 (.text:ClockP_scheduleNextTick)
+                  00007824    00000024     drivers_cc13x0.aem3 : List.oem3 (.text:List_remove)
+                  00007848    00000024     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_cmdAlloc)
+                  0000786c    00000024                              : RFCC26XX_multiMode.oem3 (.text:RF_invokeGlobalCallback)
+                  00007890    00000024                              : RFCC26XX_multiMode.oem3 (.text:RF_isStateTransitionAllowed)
+                  000078b4    00000024     drivers_cc13x0.aem3 : SDSPI.oem3 (.text:SDSPI_close)
+                  000078d8    00000024     nortos_cc13x0.aem3 : TimerPCC26XX_nortos.oem3 (.text:TimerP_getMaxTicks)
+                  000078fc    00000024     rtsv7M3_T_le_eabi.lib : boot_cortex_m.c.obj (.text:_c_int00:_c_int00)
+                  00007920    00000024                           : memcmp.c.obj (.text:memcmp)
+                  00007944    00000022     drivers_cc13x0.aem3 : List.oem3 (.text:List_get)
+                  00007966    00000022                         : List.oem3 (.text:List_put)
+                  00007988    00000020     nortos_cc13x0.aem3 : ClockPTimer_nortos.oem3 (.text:ClockP_add)
+                  000079a8    00000020     driverlib.lib : rfc.obj (.text:NOROM_RFCAdi3VcoLdoVoltageMode)
+                  000079c8    00000020                   : setup_rom.obj (.text:NOROM_SetupGetTrimForXoscHfCtl)
+                  000079e8    00000020     drivers_cc13x0.aem3 : PINCC26XX.oem3 (.text:PINCC26XX_setIoCfgMux)
+                  00007a08    00000020                         : PowerCC26XX.oem3 (.text:Power_unregisterNotify)
+                  00007a28    00000020     RFQueue.obj (.text:RFQueue_nextEntry)
+                  00007a48    00000020     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_clkPowerUp)
+                  00007a68    00000020                              : RFCC26XX_multiMode.oem3 (.text:RF_hwiCpe0ChangePhy)
+                  00007a88    00000020                              : RFCC26XX_multiMode.oem3 (.text:RF_ratIsRunning)
+                  00007aa8    00000020     drivers_cc13x0.aem3 : SDSPI.oem3 (.text:spiTransfer)
+                  00007ac8    00000020                         : UARTCC26XX.oem3 (.text:threadSafeStdbyDisRelease)
+                  00007ae8    00000020                         : UARTCC26XX.oem3 (.text:threadSafeStdbyDisSet)
+                  00007b08    0000001e                         : PINCC26XX.oem3 (.text:PIN_close)
+                  00007b26    0000001e                         : PowerCC26XX.oem3 (.text:Power_getTransitionLatency)
+                  00007b44    0000001e     nortos_cc13x0.aem3 : SemaphoreP_nortos.oem3 (.text:SemaphoreP_constructBinary)
+                  00007b62    00000002                        : startup_cc13xx_cc26xx_ccs.oem3 (.text:nmiISR)
+                  00007b64    0000001c     CC1310_LAUNCHXL.obj (.text:CC1310_LAUNCHXL_initGeneral)
+                  00007b80    0000001c     nortos_cc13x0.aem3 : HwiPCC26XX_nortos.oem3 (.text:HwiP_destruct)
+                  00007b9c    0000001c     driverlib.lib : chipinfo.obj (.text:NOROM_ChipInfo_GetChipFamily)
+                  00007bb8    0000001c                   : setup_rom.obj (.text:NOROM_SetupGetTrimForAmpcompTh2)
+                  00007bd4    0000001c                   : setup_rom.obj (.text:NOROM_SetupGetTrimForRcOscLfRtuneCtuneTrim)
+                  00007bf0    0000001c     drivers_cc13x0.aem3 : PINCC26XX.oem3 (.text:PIN_hwi)
+                  00007c0c    0000001c     nortos_cc13x0.aem3 : QueueP_nortos.oem3 (.text:QueueP_put)
+                  00007c28    0000001c     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_clkInactivityCallback)
+                  00007c44    0000001c                              : RFCC26XX_multiMode.oem3 (.text:RF_powerConstraintSet)
+                  00007c60    0000001c     nortos_cc13x0.aem3 : SwiP_nortos.oem3 (.text:SwiP_disable)
+                  00007c7c    0000001c                        : SwiP_nortos.oem3 (.text:SwiP_or)
+                  00007c98    0000001c                        : TimerPCC26XX_nortos.oem3 (.text:TimerP_dynamicStub)
+                  00007cb4    0000001c     smartrf_settings.obj (.text:enterGenfskCpePatch)
+                  00007cd0    0000001c     rtsv7M3_T_le_eabi.lib : memory.c.obj (.text:free_list_remove)
+                  00007cec    0000001a     nortos_cc13x0.aem3 : QueueP_nortos.oem3 (.text:QueueP_get)
+                  00007d06    0000001a                        : SemaphoreP_nortos.oem3 (.text:SemaphoreP_createBinary)
+                  00007d20    00000018                        : ClockPTimer_nortos.oem3 (.text:ClockP_destruct)
+                  00007d38    00000018                        : ClockPTimer_nortos.oem3 (.text:ClockP_getTimeout)
+                  00007d50    00000018                        : HwiPCC26XX_nortos.oem3 (.text:HwiP_inISR)
+                  00007d68    00000018     driverlib.lib : aon_rtc.obj (.text:NOROM_AONRTCCurrentCompareValueGet)
+                  00007d80    00000018                   : chipinfo.obj (.text:NOROM_ChipInfo_GetPackageType)
+                  00007d98    00000018                   : osc.obj (.text:NOROM_OSCHF_TurnOnXosc)
+                  00007db0    00000018                   : rfc.obj (.text:NOROM_RFCCpeIntGetAndClear)
+                  00007dc8    00000018                   : setup_rom.obj (.text:NOROM_SetupGetTrimForAdcShModeEn)
+                  00007de0    00000018                   : setup_rom.obj (.text:NOROM_SetupGetTrimForAdcShVbufEn)
+                  00007df8    00000018                   : setup_rom.obj (.text:NOROM_SetupGetTrimForAmpcompTh1)
+                  00007e10    00000018                   : setup_rom.obj (.text:NOROM_SetupGetTrimForDblrLoopFilterResetVoltage)
+                  00007e28    00000018                   : setup_rom.obj (.text:NOROM_SetupGetTrimForRcOscLfIBiasTrim)
+                  00007e40    00000018                   : setup_rom.obj (.text:NOROM_SetupGetTrimForXoscLfRegulatorAndCmirrwrRatio)
+                  00007e58    00000018     drivers_cc13x0.aem3 : PINCC26XX.oem3 (.text:PIN_getConfig)
+                  00007e70    00000018                         : PowerCC26XX.oem3 (.text:Power_idleFunc)
+                  00007e88    00000018     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_swiFsm)
+                  00007ea0    00000018     drivers_cc13x0.aem3 : UART.oem3 (.text:UART_Params_init)
+                  00007eb8    00000018     rtsv7M3_T_le_eabi.lib : args_main.c.obj (.text:_args_main)
+                  00007ed0    00000018                           : ll_mul_t2.asm.obj (.text)
+                  00007ee8    00000016     display.aem3 : DisplayUart.oem3 (.text:DisplayUartMin_close)
+                  00007efe    00000016     nortos_cc13x0.aem3 : HwiPCC26XX_nortos.oem3 (.text:HwiP_setFunc)
+                  00007f14    00000016     driverlib.lib : chipinfo.obj (.text:NOROM_ThisLibraryIsFor_CC13x0_HwRev20AndLater_HaltIfViolated)
+                  00007f2a    00000016     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_restartClockTimeout)
+                  00007f40    00000016     nortos_cc13x0.aem3 : SemaphoreP_nortos.oem3 (.text:SemaphoreP_create)
+                  00007f56    00000014     drivers_cc13x0.aem3 : List.oem3 (.text:List_clearList)
+                  00007f6a    00000002     rtsv7M3_T_le_eabi.lib : div0.asm.obj (.text)
+                  00007f6c    00000014     driverlib.lib : aon_rtc.obj (.text:NOROM_AONRTCCurrent64BitValueGet)
+                  00007f80    00000014                   : interrupt.obj (.text:NOROM_IntUnregister)
+                  00007f94    00000014     drivers_cc13x0.aem3 : PINCC26XX.oem3 (.text:PINCC26XX_getOutputValue)
+                  00007fa8    00000014                         : PowerCC26XX.oem3 (.text:Power_disablePolicy)
+                  00007fbc    00000014     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_Params_init)
+                  00007fd0    00000014                              : RFCC26XX_multiMode.oem3 (.text:RF_dbellSyncOnAck)
+                  00007fe4    00000014                              : RFCC26XX_multiMode.oem3 (.text:RF_ratGetChannel)
+                  00007ff8    00000014     drivers_cc13x0.aem3 : SPI.oem3 (.text:SPI_Params_init)
+                  0000800c    00000014     nortos_cc13x0.aem3 : SwiP_nortos.oem3 (.text:SwiP_handleHwi)
+                  00008020    00000014                        : TimerPCC26XX_nortos.oem3 (.text:TimerP_startup)
+                  00008034    00000014     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:configureRFCoreClocks)
+                  00008048    00000014     nortos_cc13x0.aem3 : SystemP_nortos.oem3 (.text:putChar)
+                  0000805c    00000014                        : startup_cc13xx_cc26xx_ccs.oem3 (.text:resetISR)
+                  00008070    00000014     rtsv7M3_T_le_eabi.lib : strlen.c.obj (.text:strlen)
+                  00008084    00000012     nortos_cc13x0.aem3 : HwiPCC26XX_nortos.oem3 (.text:HwiP_Params_init)
+                  00008096    00000012     drivers_cc13x0.aem3 : RingBuf.oem3 (.text:RingBuf_construct)
+                  000080a8    00000012     main_nortos.obj (.text:main)
+                  000080ba    00000002     --HOLE-- [fill = 0]
+                  000080bc    00000010     nortos_cc13x0.aem3 : ClockPTimer_nortos.oem3 (.text:ClockP_Params_init)
+                  000080cc    00000010                        : ClockPTimer_nortos.oem3 (.text:ClockP_getCpuFreq)
+                  000080dc    00000010                        : HwiPCC26XX_nortos.oem3 (.text:HwiP_disable)
+                  000080ec    00000010                        : HwiPCC26XX_nortos.oem3 (.text:HwiP_enableInterrupt)
+                  000080fc    00000010                        : HwiPCC26XX_nortos.oem3 (.text:HwiP_post)
+                  0000810c    00000010     driverlib.lib : rfc.obj (.text:NOROM_RFCHwIntGetAndClear)
+                  0000811c    00000010                   : rfc.obj (.text:NOROM_RFCRfTrimSet)
+                  0000812c    00000010                   : setup_rom.obj (.text:NOROM_SetupGetTrimForXoscHfFastStart)
+                  0000813c    00000010                   : setup_rom.obj (.text:NOROM_SetupGetTrimForXoscHfIbiastherm)
+                  0000814c    00000010     drivers_cc13x0.aem3 : PINCC26XX.oem3 (.text:PINCC26XX_getPinCount)
+                  0000815c    00000010     nortos_cc13x0.aem3 : PowerCC26XX_nortos.oem3 (.text:PowerCC26XX_schedulerDisable)
+                  0000816c    00000010     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:Power_enablePolicy)
+                  0000817c    00000010     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_dbellSubmitCmdAsync)
+                  0000818c    00000010                              : RFCC26XX_multiMode.oem3 (.text:RF_isClientOwner)
+                  0000819c    00000010     nortos_cc13x0.aem3 : SemaphoreP_nortos.oem3 (.text:SemaphoreP_Params_init)
+                  000081ac    00000010                        : SwiP_nortos.oem3 (.text:SwiP_Params_init)
+                  000081bc    00000010                        : TimerPCC26XX_nortos.oem3 (.text:TimerP_Params_init)
+                  000081cc    00000010     smartrf_settings.obj (.text:applyGenfskPatch)
+                  000081dc    00000010     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:uartPostNotify)
+                  000081ec    0000000e     driverlib.lib : vims.obj (.text:NOROM_VIMSModeGet)
+                  000081fa    0000000e     nortos_cc13x0.aem3 : QueueP_nortos.oem3 (.text:QueueP_empty)
+                  00008208    0000000e                        : QueueP_nortos.oem3 (.text:QueueP_remove)
+                  00008216    0000000e     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_init)
+                  00008224    0000000e     rtsv7M3_T_le_eabi.lib : copy_decompress_none.c.obj (.text:decompress:none:__TI_decompress_none)
+                  00008232    00000002     --HOLE-- [fill = 0]
+                  00008234    0000000c     nortos_cc13x0.aem3 : ClockPTimer_nortos.oem3 (.text:ClockP_doTick)
+                  00008240    0000000c                        : ClockPTimer_nortos.oem3 (.text:ClockP_getSystemTickPeriod)
+                  0000824c    0000000c     driverlib.lib : cpu.obj (.text:NOROM_CPUcpsid)
+                  00008258    0000000c                   : cpu.obj (.text:NOROM_CPUcpsie)
+                  00008264    0000000c                   : osc.obj (.text:NOROM_OSC_HPOSCRelativeFrequencyOffsetToRFCoreFormatConvert)
+                  00008270    0000000c     drivers_cc13x0.aem3 : PINCC26XX.oem3 (.text:PIN_registerIntCb)
+                  0000827c    0000000c     nortos_cc13x0.aem3 : PowerCC26XX_nortos.oem3 (.text:PowerCC26XX_schedulerRestore)
+                  00008288    0000000c     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:Power_getConstraintMask)
+                  00008294    0000000c                         : PowerCC26XX.oem3 (.text:Power_getDependencyCount)
+                  000082a0    0000000c     RFQueue.obj (.text:RFQueue_getDataEntry)
+                  000082ac    0000000c     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_powerConstraintGet)
+                  000082b8    0000000c     drivers_cc13x0.aem3 : SDSPI.oem3 (.text:SDSPI_init)
+                  000082c4    0000000c     nortos_cc13x0.aem3 : SwiP_nortos.oem3 (.text:SwiP_getTrigger)
+                  000082d0    0000000c                        : TimerPCC26XX_nortos.oem3 (.text:TimerP_getFreq)
+                  000082dc    0000000c     rtsv7M3_T_le_eabi.lib : copy_zero_init.c.obj (.text:decompress:ZI:__TI_zero_init)
+                  000082e8    0000000c     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.text:spiPostNotify)
+                  000082f4    0000000a                         : SD.oem3 (.text:SD_close)
+                  000082fe    0000000a                         : SD.oem3 (.text:SD_getNumSectors)
+                  00008308    0000000a                         : SD.oem3 (.text:SD_getSectorSize)
+                  00008312    0000000a                         : SD.oem3 (.text:SD_initialize)
+                  0000831c    0000000a                         : SD.oem3 (.text:SD_read)
+                  00008326    0000000a                         : SD.oem3 (.text:SD_write)
+                  00008330    0000000a                         : SPI.oem3 (.text:SPI_close)
+                  0000833a    0000000a                         : SPI.oem3 (.text:SPI_transfer)
+                  00008344    0000000a                         : UART.oem3 (.text:UART_close)
+                  0000834e    0000000a                         : UART.oem3 (.text:UART_control)
+                  00008358    0000000a                         : UART.oem3 (.text:UART_write)
+                  00008362    0000000a                         : UDMACC26XX.oem3 (.text:UDMACC26XX_hwiIntFxn)
+                  0000836c    00000008     CC1310_LAUNCHXL.obj (.text:Board_init)
+                  00008374    00000008     CC1310_LAUNCHXL_fxns.obj (.text:Board_initHook)
+                  0000837c    00000008     nortos_cc13x0.aem3 : HwiPCC26XX_nortos.oem3 (.text:HwiP_restore)
+                  00008384    00000008     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.text:SPICC26XXDMA_transferCallback)
+                  0000838c    00000008                         : UARTCC26XX.oem3 (.text:UARTCC26XX_init)
+                  00008394    00000008     rtsv7M3_T_le_eabi.lib : memory.c.obj (.text:malloc)
+                  0000839c    00000008     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:readSemCallback)
+                  000083a4    00000008     smartrf_settings.obj (.text:rf_patch_cpe_genfsk)
+                  000083ac    00000008     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.text:writeSemCallback)
+                  000083b4    00000006     nortos_cc13x0.aem3 : ClockPTimer_nortos.oem3 (.text:ClockP_stop)
+                  000083ba    00000006     display.aem3 : DisplayUart.oem3 (.text:DisplayUartMin_control)
+                  000083c0    00000006                  : DisplayUart.oem3 (.text:DisplayUartMin_getType)
+                  000083c6    00000006     driverlib.lib : cpu.obj (.text:NOROM_CPUdelay)
+                  000083cc    00000006     nortos_cc13x0.aem3 : QueueP_nortos.oem3 (.text:QueueP_init)
+                  000083d2    00000006     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.text:RF_clkReqAccess)
+                  000083d8    00000006     drivers_cc13x0.aem3 : SDSPI.oem3 (.text:SDSPI_control)
+                  000083de    00000006                         : SDSPI.oem3 (.text:SDSPI_getSectorSize)
+                  000083e4    00000006                         : UARTCC26XX.oem3 (.text:UARTCC26XX_readPolling)
+                  000083ea    00000006                         : UARTCC26XX.oem3 (.text:UARTCC26XX_writePolling)
+                  000083f0    00000004     nortos_cc13x0.aem3 : PowerCC26XX_nortos.oem3 (.text:CPUwfi)
+                  000083f4    00000004                        : ClockPTimer_nortos.oem3 (.text:ClockP_isActive)
+                  000083f8    00000004                        : ClockPTimer_nortos.oem3 (.text:ClockP_setTimeout)
+                  000083fc    00000004                        : HwiPCC26XX_nortos.oem3 (.text:HwiP_enable)
+                  00008400    00000004     driverlib.lib : rfc.obj (.text:NOROM_RFCOverrideUpdate)
+                  00008404    00000004     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:PowerCC26XX_switchXOSC_HF)
+                  00008408    00000004     nortos_cc13x0.aem3 : QueueP_nortos.oem3 (.text:QueueP_head)
+                  0000840c    00000004                        : QueueP_nortos.oem3 (.text:QueueP_next)
+                  00008410    00000004                        : SemaphoreP_nortos.oem3 (.text:SemaphoreP_delete)
+                  00008414    00000004                        : SystemP_nortos.oem3 (.text:SystemP_vsnprintf)
+                  00008418    00000004                        : TimerPCC26XX_nortos.oem3 (.text:TimerP_getCount64)
+                  0000841c    00000004     rtsv7M3_T_le_eabi.lib : pre_init.c.obj (.text:_system_pre_init)
+                  00008420    00000004                           : exit.c.obj (.text:abort:abort)
+                  00008424    00000004     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.text:nopResourceHandler)
+
+.const     0    00008428    00000e50     
+                  00008428    000006b4     smartrf_settings.obj (.const:patchGenfskRfe)
+                  00008adc    00000408     smartrf_settings.obj (.const:patchImageGenfsk)
+                  00008ee4    0000004c     drivers_cc13x0.aem3 : PowerCC26XX.oem3 (.const:resourceDB)
+                  00008f30    00000044                         : UARTCC26XX.oem3 (.const:$O1$$)
+                  00008f74    00000040                         : GPIOCC26XX.oem3 (.const:$O2$$)
+                  00008fb4    00000040     CC1310_LAUNCHXL.obj (.const:spiCC26XXDMAHWAttrs)
+                  00008ff4    00000038     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.const:$O1$$)
+                  0000902c    0000002c     CC1310_LAUNCHXL.obj (.const:BoardGpioInitTable)
+                  00009058    00000028     drivers_cc13x0.aem3 : UARTCC26XX.oem3 (.const:UARTCC26XX_fxnTable)
+                  00009080    00000028     CC1310_LAUNCHXL.obj (.const:uartCC26XXHWAttrs)
+                  000090a8    00000024     drivers_cc13x0.aem3 : SDSPI.oem3 (.const:SDSPI_fxnTable)
+                  000090cc    00000024                         : UART.oem3 (.const:UART_defaultParams)
+                  000090f0    00000020     display.aem3 : DisplayUart.oem3 (.const:DisplayUartMin_fxnTable)
+                  00009110    00000020     drivers_cc13x0.aem3 : SPI.oem3 (.const:SPI_defaultParams)
+                  00009130    0000001c     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.const:RF_defaultParams)
+                  0000914c    00000018     CC1310_LAUNCHXL.obj (.const:PowerCC26XX_config)
+                  00009164    00000018     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.const:SPICC26XXDMA_fxnTable)
+                  0000917c    00000018     CC1310_LAUNCHXL.obj (.const:SPI_config)
+                  00009194    00000018     driverlib.lib : rfc.obj (.const:rfc_defaultIrqAddr)
+                  000091ac    00000014     drivers_cc13x0.aem3 : SDSPI.oem3 (.const:$O1$$)
+                  000091c0    00000014     CC1310_LAUNCHXL_fxns.obj (.const:$P$T1$2)
+                  000091d4    00000014     CC1310_LAUNCHXL.obj (.const:GPIOCC26XX_config)
+                  000091e8    00000014     CC1310_LAUNCHXL.obj (.const:displayUartHWAttrs)
+                  000091fc    00000012     CC1310_LAUNCHXL.obj (.const)
+                  0000920e    00000001     display.aem3 : Display.oem3 (.const:Display_defaultParams)
+                  0000920f    00000001     --HOLE-- [fill = 0]
+                  00009210    00000010     nortos_cc13x0.aem3 : SwiP_nortos.oem3 (.const:SwiP_defaultParams)
+                  00009220    0000000c     CC1310_LAUNCHXL.obj (.const:Display_config)
+                  0000922c    0000000c     CC1310_LAUNCHXL.obj (.const:RFCC26XX_hwAttrs)
+                  00009238    0000000c     CC1310_LAUNCHXL.obj (.const:SD_config)
+                  00009244    0000000c     CC1310_LAUNCHXL.obj (.const:UART_config)
+                  00009250    00000008     CC1310_LAUNCHXL_fxns.obj (.const:$P$T0$1)
+                  00009258    00000008     CC1310_LAUNCHXL.obj (.const:PINCC26XX_hwAttrs)
+                  00009260    00000008     CC1310_LAUNCHXL.obj (.const:UDMACC26XX_config)
+                  00009268    00000008     CC1310_LAUNCHXL.obj (.const:udmaHWAttrs)
+                  00009270    00000004     drivers_cc13x0.aem3 : SD.oem3 (.const:SD_defaultParams)
+                  00009274    00000004     CC1310_LAUNCHXL.obj (.const:sdspiHWAttrs)
+
+.cinit     0    00009280    00000188     
+                  00009280    00000111     (.cinit..data.load) [load image, compression = lzss]
+                  00009391    00000003     --HOLE-- [fill = 0]
+                  00009394    0000000c     (__TI_handler_table)
+                  000093a0    00000008     (.cinit..TI.bound:dmaSpi0RxControlTableEntry.load) [load image, compression = zero_init]
+                  000093a8    00000008     (.cinit..TI.bound:dmaSpi0TxControlTableEntry.load) [load image, compression = zero_init]
+                  000093b0    00000008     (.cinit..TI.bound:dmaSpi1RxControlTableEntry.load) [load image, compression = zero_init]
+                  000093b8    00000008     (.cinit..TI.bound:dmaSpi1TxControlTableEntry.load) [load image, compression = zero_init]
+                  000093c0    00000008     (.cinit..bss.load) [load image, compression = zero_init]
+                  000093c8    00000008     (.cinit..vtable_ram.load) [load image, compression = zero_init]
+                  000093d0    00000038     (__TI_cinit_table)
+
+.init_array 
+*          0    00000000    00000000     UNINITIALIZED
+
+.ccfg      0    0001ffa8    00000058     
+                  0001ffa8    00000058     ccfg.obj (.ccfg:retain)
+
+.sysmem    0    20000000    00000100     UNINITIALIZED
+                  20000000    00000010     rtsv7M3_T_le_eabi.lib : memory.c.obj (.sysmem)
+                  20000010    000000f0     --HOLE--
+
+.vtable_ram 
+*          0    20000100    000000c8     UNINITIALIZED
+                  20000100    000000c8     driverlib.lib : interrupt.obj (.vtable_ram)
+
+.TI.bound:dmaSpi0RxControlTableEntry 
+*          0    20000430    00000010     UNINITIALIZED
+                  20000430    00000010     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.TI.bound:dmaSpi0RxControlTableEntry)
+
+.TI.bound:dmaSpi1RxControlTableEntry 
+*          0    20000500    00000010     UNINITIALIZED
+                  20000500    00000010     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.TI.bound:dmaSpi1RxControlTableEntry)
+
+.bss       0    20000520    000011a8     UNINITIALIZED
+                  20000520    00000400     (.common:cpy_buff)
+                  20000920    00000400     (.common:sdPacket)
+                  20000d20    000003d8     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.bss:$O1$$)
+                  200010f8    000001c8     (.common:spiCC26XXDMAObjects)
+                  200012c0    0000012c     (.common:uartCC26XXObjects)
+                  200013ec    00000004     nortos_cc13x0.aem3 : PowerCC26XX_nortos.oem3 (.bss)
+                  200013f0    000000a8     rfEchoTx.obj (.bss:rfObject)
+                  20001498    00000080     CC1310_LAUNCHXL.obj (.bss:uartStringBuf)
+                  20001518    00000058     rfEchoTx.obj (.bss:rxDataEntryBuffer)
+                  20001570    0000003c     nortos_cc13x0.aem3 : SwiP_nortos.oem3 (.bss:$O1$$)
+                  200015ac    00000020     rfEchoTx.obj (.bss:rxPacket)
+                  200015cc    00000020     rfEchoTx.obj (.bss:txPacket)
+                  200015ec    00000020     (.common:uartCC26XXRingBuffer)
+                  2000160c    00000020     (.common:udmaObjects)
+                  2000162c    00000018     rfEchoTx.obj (.bss)
+                  20001644    00000014     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.bss:RF_ratSyncCmd)
+                  20001658    00000014     driverlib.lib : osc.obj (.bss:oscHfGlobals)
+                  2000166c    0000000d     nortos_cc13x0.aem3 : SwiP_nortos.oem3 (.bss)
+                  20001679    00000001     rf_multiMode_cc13x0.aem3 : RFCC26XX_multiMode.oem3 (.bss)
+                  2000167a    00000001     (.common:driverlib_release_0_56883)
+                  2000167b    00000001     --HOLE--
+                  2000167c    0000000c     rfEchoTx.obj (.bss:ledPinState)
+                  20001688    0000000c     rfEchoTx.obj (.bss:rxStatistics)
+                  20001694    0000000c     (.common:displayUartObject)
+                  200016a0    0000000c     (.common:sdspiObjects)
+                  200016ac    00000008     rfEchoTx.obj (.bss:dataQueue)
+                  200016b4    00000008     driverlib.lib : sys_ctrl.obj (.bss:powerQualGlobals)
+                  200016bc    00000004     (.common:cardCapacity)
+                  200016c0    00000004     (.common:readEntry)
+                  200016c4    00000004     (.common:sdHandle)
+
+.data      0    200016c8    00000575     UNINITIALIZED
+                  200016c8    00000114     drivers_cc13x0.aem3 : PINCC26XX.oem3 (.data:$O1$$)
+                  200017dc    00000114                         : PowerCC26XX.oem3 (.data:PowerCC26XX_module)
+                  200018f0    000000d0     nortos_cc13x0.aem3 : HwiPCC26XX_nortos.oem3 (.data:$O1$$)
+                  200019c0    000000c0                        : ClockPTimer_nortos.oem3 (.data:$O1$$)
+                  20001a80    00000054     smartrf_settings.obj (.data:pOverrides)
+                  20001ad4    00000040     drivers_cc13x0.aem3 : GPIOCC26XX.oem3 (.data:$O1$$)
+                  20001b14    00000030     nortos_cc13x0.aem3 : TimerPCC26XX_nortos.oem3 (.data:$O1$$)
+                  20001b44    00000030     CC1310_LAUNCHXL.obj (.data:gpioPinConfigs)
+                  20001b74    00000028     smartrf_settings.obj (.data:RF_cmdPropRadioDivSetup)
+                  20001b9c    00000024     smartrf_settings.obj (.data:RF_cmdPropRx)
+                  20001bc0    00000018     smartrf_settings.obj (.data:RF_cmdFs)
+                  20001bd8    00000018     smartrf_settings.obj (.data:RF_cmdPropTx)
+                  20001bf0    00000010     smartrf_settings.obj (.data:RF_prop)
+                  20001c00    00000010     CC1310_LAUNCHXL.obj (.data:gpioCallbackFunctions)
+                  20001c10    0000000c     nortos_cc13x0.aem3 : SemaphoreP_nortos.oem3 (.data:$O1$$)
+                  20001c1c    0000000c     rfEchoTx.obj (.data:pinTable)
+                  20001c28    00000008     rtsv7M3_T_le_eabi.lib : _lock.c.obj (.data:$O1$$)
+                  20001c30    00000008                           : memory.c.obj (.data:$O1$$)
+                  20001c38    00000001     drivers_cc13x0.aem3 : SD.oem3 (.data)
+                  20001c39    00000001                         : SPI.oem3 (.data)
+                  20001c3a    00000001                         : UART.oem3 (.data)
+                  20001c3b    00000001     nortos_cc13x0.aem3 : SwiP_nortos.oem3 (.data)
+                  20001c3c    00000001     rfEchoTx.obj (.data)
+
+.stack     0    20004c00    00000400     UNINITIALIZED
+                  20004c00    00000004     rtsv7M3_T_le_eabi.lib : boot_cortex_m.c.obj (.stack)
+                  20004c04    000003fc     --HOLE--
+
+__llvm_prf_cnts 
+*          0    20000000    00000000     UNINITIALIZED
+
+.TI.bound:dmaSpi0TxControlTableEntry 
+*          0    20000440    00000010     UNINITIALIZED
+                  20000440    00000010     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.TI.bound:dmaSpi0TxControlTableEntry)
+
+.TI.bound:dmaSpi1TxControlTableEntry 
+*          0    20000510    00000010     UNINITIALIZED
+                  20000510    00000010     drivers_cc13x0.aem3 : SPICC26XXDMA.oem3 (.TI.bound:dmaSpi1TxControlTableEntry)
+
+.binit     0    00000000    00000000     
+
+.args      0    00009278    00000008     
+                  00009278    00000008     --HOLE-- [fill = 0]
+
+MODULE SUMMARY
+
+       Module                            code    ro data   rw data
+       ------                            ----    -------   -------
+    .\
+       rfEchoTx.obj                      1964    0         2445   
+       CC1310_LAUNCHXL.obj               36      330       1036   
+       CC1310_LAUNCHXL_fxns.obj          280     28        0      
+       RFQueue.obj                       268     0         4      
+       ccfg.obj                          0       88        0      
+       main_nortos.obj                   18      0         0      
+    +--+---------------------------------+-------+---------+---------+
+       Total:                            2566    446       3485   
+                                                                  
+    .\smartrf_settings\
+       smartrf_settings.obj              502     2748      224    
+    +--+---------------------------------+-------+---------+---------+
+       Total:                            502     2748      224    
+                                                                  
+    C:/ti/simplelink_cc13x0_sdk_4_10_01_01/kernel/nortos/lib/nortos_cc13x0.aem3
+       ClockPTimer_nortos.oem3           954     0         192    
+       SystemP_nortos.oem3               865     0         0      
+       SwiP_nortos.oem3                  704     16        74     
+       TimerPCC26XX_nortos.oem3          606     0         48     
+       HwiPCC26XX_nortos.oem3            316     0         208    
+       SemaphoreP_nortos.oem3            394     0         12     
+       PowerCC26XX_nortos.oem3           288     0         4      
+       startup_cc13xx_cc26xx_ccs.oem3    26      200       0      
+       QueueP_nortos.oem3                96      0         0      
+    +--+---------------------------------+-------+---------+---------+
+       Total:                            4249    216       538    
+                                                                  
+    C:/ti/simplelink_cc13x0_sdk_4_10_01_01/source/ti/devices/cc13x0/driverlib/bin/ccs/driverlib.lib
+       setup_rom.obj                     1456    0         0      
+       sys_ctrl.obj                      776     0         8      
+       rfc.obj                           692     24        0      
+       osc.obj                           388     0         20     
+       setup.obj                         368     0         0      
+       interrupt.obj                     74      0         200    
+       chipinfo.obj                      186     0         0      
+       aon_rtc.obj                       44      0         0      
+       ddi.obj                           44      0         0      
+       adi.obj                           40      0         0      
+       aon_batmon.obj                    40      0         0      
+       cpu.obj                           30      0         0      
+       vims.obj                          14      0         0      
+       driverlib_release.obj             0       0         1      
+    +--+---------------------------------+-------+---------+---------+
+       Total:                            4152    24        229    
+                                                                  
+    C:/ti/simplelink_cc13x0_sdk_4_10_01_01/source/ti/display/lib/display.aem3
+       DisplayUart.oem3                  184     32        0      
+       Display.oem3                      174     1         0      
+    +--+---------------------------------+-------+---------+---------+
+       Total:                            358     33        0      
+                                                                  
+    C:/ti/simplelink_cc13x0_sdk_4_10_01_01/source/ti/drivers/lib/drivers_cc13x0.aem3
+       UARTCC26XX.oem3                   2630    108       0      
+       SPICC26XXDMA.oem3                 2448    80        64     
+       PowerCC26XX.oem3                  2144    76        276    
+       PINCC26XX.oem3                    1602    0         276    
+       SDSPI.oem3                        1616    56        0      
+       PowerCC26XX_calibrateRCOSC.oem3   1380    0         0      
+       GPIOCC26XX.oem3                   632     64        64     
+       UART.oem3                         182     36        1      
+       SPI.oem3                          168     32        1      
+       SD.oem3                           188     4         1      
+       UDMACC26XX.oem3                   156     0         0      
+       RingBuf.oem3                      148     0         0      
+       List.oem3                         124     0         0      
+    +--+---------------------------------+-------+---------+---------+
+       Total:                            13418   456       683    
+                                                                  
+    C:/ti/simplelink_cc13x0_sdk_4_10_01_01/source/ti/drivers/rf/lib/rf_multiMode_cc13x0.aem3
+       RFCC26XX_multiMode.oem3           5846    28        1005   
+    +--+---------------------------------+-------+---------+---------+
+       Total:                            5846    28        1005   
+                                                                  
+    C:\ti\ccs1011\ccs\tools\compiler\ti-cgt-arm_20.2.1.LTS\lib\rtsv7M3_T_le_eabi.lib
+       memory.c.obj                      684     0         8      
+       fd_add_t2.asm.obj                 438     0         0      
+       fd_mul_t2.asm.obj                 252     0         0      
+       memcpy_t2.asm.obj                 156     0         0      
+       ull_div_t2.asm.obj                150     0         0      
+       fd_cmp_t2.asm.obj                 134     0         0      
+       memset_t2.asm.obj                 122     0         0      
+       copy_decompress_lzss.c.obj        104     0         0      
+       fd_toi_t2.asm.obj                 72      0         0      
+       autoinit.c.obj                    68      0         0      
+       fd_tou_t2.asm.obj                 68      0         0      
+       u_divt2.asm.obj                   64      0         0      
+       i_tofd_t2.asm.obj                 46      0         0      
+       boot_cortex_m.c.obj               36      0         0      
+       memcmp.c.obj                      36      0         0      
+       args_main.c.obj                   24      0         0      
+       ll_mul_t2.asm.obj                 24      0         0      
+       strlen.c.obj                      20      0         0      
+       copy_decompress_none.c.obj        14      0         0      
+       copy_zero_init.c.obj              12      0         0      
+       _lock.c.obj                       2       0         8      
+       exit.c.obj                        4       0         0      
+       pre_init.c.obj                    4       0         0      
+       div0.asm.obj                      2       0         0      
+    +--+---------------------------------+-------+---------+---------+
+       Total:                            2536    0         16     
+                                                                  
+       Heap:                             0       0         256    
+       Stack:                            0       0         1024   
+       Linker Generated:                 0       389       0      
+    +--+---------------------------------+-------+---------+---------+
+       Grand Total:                      33627   4340      7460   
+
+
+LINKER GENERATED COPY TABLES
+
+__TI_cinit_table @ 000093d0 records: 7, size/record: 8, table size: 56
+	.data: load addr=00009280, load size=00000111 bytes, run addr=200016c8, run size=00000575 bytes, compression=lzss
+	.TI.bound:dmaSpi0RxControlTableEntry: load addr=000093a0, load size=00000008 bytes, run addr=20000430, run size=00000010 bytes, compression=zero_init
+	.TI.bound:dmaSpi0TxControlTableEntry: load addr=000093a8, load size=00000008 bytes, run addr=20000440, run size=00000010 bytes, compression=zero_init
+	.TI.bound:dmaSpi1RxControlTableEntry: load addr=000093b0, load size=00000008 bytes, run addr=20000500, run size=00000010 bytes, compression=zero_init
+	.TI.bound:dmaSpi1TxControlTableEntry: load addr=000093b8, load size=00000008 bytes, run addr=20000510, run size=00000010 bytes, compression=zero_init
+	.bss: load addr=000093c0, load size=00000008 bytes, run addr=20000520, run size=000011a8 bytes, compression=zero_init
+	.vtable_ram: load addr=000093c8, load size=00000008 bytes, run addr=20000100, run size=000000c8 bytes, compression=zero_init
+
+
+LINKER GENERATED HANDLER TABLE
+
+__TI_handler_table @ 00009394 records: 3, size/record: 4, table size: 12
+	index: 0, handler: __TI_zero_init
+	index: 1, handler: __TI_decompress_lzss
+	index: 2, handler: __TI_decompress_none
+
+
+GLOBAL SYMBOLS: SORTED ALPHABETICALLY BY Name 
+
+address   name                                                        
+-------   ----                                                        
+000091fc  ADCBuf_count                                                
+000091fd  ADC_count                                                   
+00009200  AESCBC_count                                                
+000091fe  AESCCM_count                                                
+00009203  AESCTRDRBG_count                                            
+00009201  AESCTR_count                                                
+00009202  AESECB_count                                                
+000091ff  AESGCM_count                                                
+0000902c  BoardGpioInitTable                                          
+0000836d  Board_init                                                  
+00008375  Board_initHook                                              
+00008421  C$$EXIT                                                     
+00007b65  CC1310_LAUNCHXL_initGeneral                                 
+0000528d  CC1310_LAUNCHXL_sendExtFlashByte                            
+00006afd  CC1310_LAUNCHXL_shutDownExtFlash                            
+00006761  CC1310_LAUNCHXL_wakeUpExtFlash                              
+000080bd  ClockP_Params_init                                          
+00007989  ClockP_add                                                  
+00006841  ClockP_construct                                            
+00007d21  ClockP_destruct                                             
+00008235  ClockP_doTick                                               
+000080cd  ClockP_getCpuFreq                                           
+00008241  ClockP_getSystemTickPeriod                                  
+0000764d  ClockP_getSystemTicks                                       
+000077dd  ClockP_getTicks                                             
+000071d1  ClockP_getTicksUntilInterrupt                               
+00007d39  ClockP_getTimeout                                           
+000083f5  ClockP_isActive                                             
+00007801  ClockP_scheduleNextTick                                     
+000083f9  ClockP_setTimeout                                           
+00005419  ClockP_start                                                
+00004afd  ClockP_startup                                              
+000083b5  ClockP_stop                                                 
+200019c4  ClockP_tickPeriod                                           
+0000577d  ClockP_walkQueueDynamic                                     
+000043ed  ClockP_workFuncDynamic                                      
+00001b77  DisplayUartMin_clear                                        
+0000288f  DisplayUartMin_clearLines                                   
+00007ee9  DisplayUartMin_close                                        
+000083bb  DisplayUartMin_control                                      
+000090f0  DisplayUartMin_fxnTable                                     
+000083c1  DisplayUartMin_getType                                      
+000039df  DisplayUartMin_init                                         
+000067ad  DisplayUartMin_open                                         
+00006961  DisplayUartMin_vprintf                                      
+00009220  Display_config                                              
+00009205  Display_count                                               
+0000920e  Display_defaultParams                                       
+00007675  Display_doInit                                              
+000061b1  Display_doOpen                                              
+00007621  Display_doPrintf                                            
+000091d4  GPIOCC26XX_config                                           
+0000733d  GPIO_hwiIntFxn                                              
+00004495  GPIO_init                                                   
+00006dfd  GPIO_setCallback                                            
+00002f49  GPIO_setConfig                                              
+00006485  GPIO_write                                                  
+00008085  HwiP_Params_init                                            
+0000568d  HwiP_construct                                              
+00007b81  HwiP_destruct                                               
+000080dd  HwiP_disable                                                
+000083fd  HwiP_enable                                                 
+000080ed  HwiP_enableInterrupt                                        
+00007d51  HwiP_inISR                                                  
+000080fd  HwiP_post                                                   
+0000837d  HwiP_restore                                                
+00007eff  HwiP_setFunc                                                
+200018f4  HwiP_swiPIntNum                                             
+00009206  I2C_count                                                   
+00009207  I2S_count                                                   
+00007f57  List_clearList                                              
+00007945  List_get                                                    
+00007967  List_put                                                    
+00007825  List_remove                                                 
+0000769d  NOROM_AONBatMonTemperatureGetDegC                           
+00007f6d  NOROM_AONRTCCurrent64BitValueGet                            
+00007d69  NOROM_AONRTCCurrentCompareValueGet                          
+0000824d  NOROM_CPUcpsid                                              
+00008259  NOROM_CPUcpsie                                              
+000083c7  NOROM_CPUdelay                                              
+00007b9d  NOROM_ChipInfo_GetChipFamily                                
+0000736d  NOROM_ChipInfo_GetChipType                                  
+00006b3d  NOROM_ChipInfo_GetHwRevision                                
+00007d81  NOROM_ChipInfo_GetPackageType                               
+00007519  NOROM_DDI32RegWrite                                         
+00007205  NOROM_IntRegister                                           
+00007f81  NOROM_IntUnregister                                         
+00007545  NOROM_OSCClockSourceGet                                     
+00005fd1  NOROM_OSCClockSourceSet                                     
+00005ea5  NOROM_OSCHF_AttemptToSwitchToXosc                           
+00007239  NOROM_OSCHF_SwitchToRcOscTurnOffXosc                        
+00007d99  NOROM_OSCHF_TurnOnXosc                                      
+00006e39  NOROM_OSC_HPOSCRelativeFrequencyOffsetGet                   
+00008265  NOROM_OSC_HPOSCRelativeFrequencyOffsetToRFCoreFormatConvert 
+000079a9  NOROM_RFCAdi3VcoLdoVoltageMode                              
+00007db1  NOROM_RFCCpeIntGetAndClear                                  
+00007571  NOROM_RFCCpePatchReset                                      
+000076c5  NOROM_RFCDoorbellSendTo                                     
+0000810d  NOROM_RFCHwIntGetAndClear                                   
+000076ed  NOROM_RFCOverrideSearch                                     
+00008401  NOROM_RFCOverrideUpdate                                     
+00003d41  NOROM_RFCRTrim                                              
+00003b99  NOROM_RFCRfTrimRead                                         
+0000811d  NOROM_RFCRfTrimSet                                          
+00006e75  NOROM_RFCSynthPowerDown                                     
+0000468d  NOROM_SetupAfterColdResetWakeupFromShutDownCfg1             
+00003469  NOROM_SetupAfterColdResetWakeupFromShutDownCfg2             
+000029b9  NOROM_SetupAfterColdResetWakeupFromShutDownCfg3             
+00007dc9  NOROM_SetupGetTrimForAdcShModeEn                            
+00007de1  NOROM_SetupGetTrimForAdcShVbufEn                            
+00005afd  NOROM_SetupGetTrimForAmpcompCtrl                            
+00007df9  NOROM_SetupGetTrimForAmpcompTh1                             
+00007bb9  NOROM_SetupGetTrimForAmpcompTh2                             
+00005b65  NOROM_SetupGetTrimForAnabypassValue1                        
+00007e11  NOROM_SetupGetTrimForDblrLoopFilterResetVoltage             
+0000759d  NOROM_SetupGetTrimForRadcExtCfg                             
+00007e29  NOROM_SetupGetTrimForRcOscLfIBiasTrim                       
+00007bd5  NOROM_SetupGetTrimForRcOscLfRtuneCtuneTrim                  
+000079c9  NOROM_SetupGetTrimForXoscHfCtl                              
+0000812d  NOROM_SetupGetTrimForXoscHfFastStart                        
+0000813d  NOROM_SetupGetTrimForXoscHfIbiastherm                       
+00007e41  NOROM_SetupGetTrimForXoscLfRegulatorAndCmirrwrRatio         
+0000739d  NOROM_SetupSetAonRtcSubSecInc                               
+00006581  NOROM_SetupSetCacheModeAccordingToCcfgSetting               
+000057f1  NOROM_SetupSetVddrLevel                                     
+0000453d  NOROM_SetupTrimDevice                                       
+00005bcd  NOROM_SysCtrlAdjustRechargeAfterPowerDown                   
+00001155  NOROM_SysCtrlSetRechargeBeforePowerDown                     
+00005c35  NOROM_SysCtrl_DCDC_VoltageConditionalControl                
+00007f15  NOROM_ThisLibraryIsFor_CC13x0_HwRev20AndLater_HaltIfViolated
+000081ed  NOROM_VIMSModeGet                                           
+00009208  NVS_count                                                   
+000083fd  NoRTOS_start                                                
+00006b7d  PINCC26XX_getConfig                                         
+0000814d  PINCC26XX_getPinCount                                       
+00009258  PINCC26XX_hwAttrs                                           
+000073cd  PINCC26XX_setMux                                            
+00005c9d  PIN_add                                                     
+00007b09  PIN_close                                                   
+00007e59  PIN_getConfig                                               
+00007f95  PIN_getOutputValue                                          
+00001d2d  PIN_init                                                    
+0000491d  PIN_open                                                    
+00008271  PIN_registerIntCb                                           
+0000637d  PIN_remove                                                  
+00006fdd  PIN_setConfig                                               
+00007015  PIN_setInterrupt                                            
+00006889  PIN_setOutputEnable                                         
+0000704d  PIN_setOutputValue                                          
+00009209  PWM_count                                                   
+0000620d  PowerCC26XX_RCOSC_clockFunc                                 
+000008f9  PowerCC26XX_auxISR                                          
+00006031  PowerCC26XX_calibrate                                       
+0000914c  PowerCC26XX_config                                          
+00002071  PowerCC26XX_doCalibrate                                     
+00005a25  PowerCC26XX_initiateCalibration                             
+00006eb1  PowerCC26XX_isStableXOSC_HF                                 
+200017dc  PowerCC26XX_module                                          
+0000815d  PowerCC26XX_schedulerDisable                                
+0000827d  PowerCC26XX_schedulerRestore                                
+0000326d  PowerCC26XX_standbyPolicy                                   
+00008405  PowerCC26XX_switchXOSC_HF                                   
+00007fa9  Power_disablePolicy                                         
+0000816d  Power_enablePolicy                                          
+00008289  Power_getConstraintMask                                     
+00008295  Power_getDependencyCount                                    
+00007b27  Power_getTransitionLatency                                  
+00007e71  Power_idleFunc                                              
+00002e35  Power_init                                                  
+00007715  Power_registerNotify                                        
+0000726d  Power_releaseConstraint                                     
+00004065  Power_releaseDependency                                     
+000073fd  Power_setConstraint                                         
+000041d9  Power_setDependency                                         
+000015c5  Power_sleep                                                 
+00007a09  Power_unregisterNotify                                      
+000081fb  QueueP_empty                                                
+00007ced  QueueP_get                                                  
+00008409  QueueP_head                                                 
+000083cd  QueueP_init                                                 
+0000840d  QueueP_next                                                 
+00007c0d  QueueP_put                                                  
+00008209  QueueP_remove                                               
+0000922c  RFCC26XX_hwAttrs                                            
+000039e1  RFQueue_defineQueue                                         
+000082a1  RFQueue_getDataEntry                                        
+00007a29  RFQueue_nextEntry                                           
+00007fbd  RF_Params_init                                              
+20001bc0  RF_cmdFs                                                    
+20001b74  RF_cmdPropRadioDivSetup                                     
+20001b9c  RF_cmdPropRx                                                
+20001bd8  RF_cmdPropTx                                                
+00006091  RF_getCurrentTime                                           
+000017e9  RF_open                                                     
+00003c6d  RF_pendCmd                                                  
+00004121  RF_postCmd                                                  
+000082ad  RF_powerConstraintGet                                       
+000070bd  RF_powerConstraintRelease                                   
+00007c45  RF_powerConstraintSet                                       
+20001bf0  RF_prop                                                     
+0000773d  RF_runCmd                                                   
+00008097  RingBuf_construct                                           
+00006dbd  RingBuf_get                                                 
+000069a7  RingBuf_put                                                 
+000078b5  SDSPI_close                                                 
+000083d9  SDSPI_control                                               
+000090a8  SDSPI_fxnTable                                              
+00004879  SDSPI_getNumSectors                                         
+000083df  SDSPI_getSectorSize                                         
+000082b9  SDSPI_init                                                  
+00001b79  SDSPI_initialize                                            
+00005d05  SDSPI_open                                                  
+00004c35  SDSPI_read                                                  
+00003fa1  SDSPI_write                                                 
+000082f5  SD_close                                                    
+00009238  SD_config                                                   
+0000920a  SD_count                                                    
+00009270  SD_defaultParams                                            
+000082ff  SD_getNumSectors                                            
+00008309  SD_getSectorSize                                            
+00006bfd  SD_init                                                     
+00008313  SD_initialize                                               
+00006c3d  SD_open                                                     
+0000831d  SD_read                                                     
+00008327  SD_write                                                    
+0000652d  SPICC26XXDMA_close                                          
+0000505d  SPICC26XXDMA_control                                        
+00009164  SPICC26XXDMA_fxnTable                                       
+00008217  SPICC26XXDMA_init                                           
+00002c01  SPICC26XXDMA_open                                           
+0000138d  SPICC26XXDMA_transfer                                       
+00003819  SPICC26XXDMA_transferCancel                                 
+00007ff9  SPI_Params_init                                             
+00008331  SPI_close                                                   
+0000917c  SPI_config                                                  
+0000920b  SPI_count                                                   
+00009110  SPI_defaultParams                                           
+00006c7d  SPI_init                                                    
+00006cbd  SPI_open                                                    
+0000833b  SPI_transfer                                                
+0000778d  SafeHapiVoid                                                
+0000819d  SemaphoreP_Params_init                                      
+00006671  SemaphoreP_construct                                        
+00007b45  SemaphoreP_constructBinary                                  
+00007f41  SemaphoreP_create                                           
+00007d07  SemaphoreP_createBinary                                     
+20001c14  SemaphoreP_defaultParams                                    
+00008411  SemaphoreP_delete                                           
+00005a23  SemaphoreP_destruct                                         
+00004d6d  SemaphoreP_pend                                             
+00006f65  SemaphoreP_post                                             
+000081ad  SwiP_Params_init                                            
+00003ac1  SwiP_construct                                              
+000072a1  SwiP_destruct                                               
+00007c61  SwiP_disable                                                
+00004a5d  SwiP_dispatch                                               
+000082c5  SwiP_getTrigger                                             
+00007c7d  SwiP_or                                                     
+00005d6d  SwiP_post                                                   
+00006a31  SwiP_restore                                                
+00008415  SystemP_vsnprintf                                           
+00009204  TRNG_count                                                  
+000081bd  TimerP_Params_init                                          
+0000433d  TimerP_construct                                            
+00007c99  TimerP_dynamicStub                                          
+00008419  TimerP_getCount64                                           
+0000742d  TimerP_getCurrentTick                                       
+000082d1  TimerP_getFreq                                              
+000078d9  TimerP_getMaxTicks                                          
+000072d5  TimerP_initDevice                                           
+00007165  TimerP_setNextTick                                          
+0000745d  TimerP_setThreshold                                         
+000058d5  TimerP_start                                                
+00008021  TimerP_startup                                              
+00005395  UARTCC26XX_close                                            
+000060f1  UARTCC26XX_control                                          
+00009058  UARTCC26XX_fxnTable                                         
+00002611  UARTCC26XX_hwiIntFxn                                        
+0000838d  UARTCC26XX_init                                             
+00002201  UARTCC26XX_open                                             
+00002759  UARTCC26XX_read                                             
+000067f7  UARTCC26XX_readCancel                                       
+000083e5  UARTCC26XX_readPolling                                      
+00006151  UARTCC26XX_swiIntFxn                                        
+000038fd  UARTCC26XX_write                                            
+000050ed  UARTCC26XX_writeCancel                                      
+000083eb  UARTCC26XX_writePolling                                     
+00007ea1  UART_Params_init                                            
+00008345  UART_close                                                  
+00009244  UART_config                                                 
+0000834f  UART_control                                                
+0000920c  UART_count                                                  
+000090cc  UART_defaultParams                                          
+00006cfd  UART_init                                                   
+00006d3d  UART_open                                                   
+00008359  UART_write                                                  
+0000719b  UDMACC26XX_close                                            
+00009260  UDMACC26XX_config                                           
+00008363  UDMACC26XX_hwiIntFxn                                        
+00006321  UDMACC26XX_open                                             
+0000920d  Watchdog_count                                              
+20005000  __STACK_END                                                 
+00000400  __STACK_SIZE                                                
+00000100  __SYSMEM_SIZE                                               
+000093d0  __TI_CINIT_Base                                             
+00009408  __TI_CINIT_Limit                                            
+00009394  __TI_Handler_Table_Base                                     
+000093a0  __TI_Handler_Table_Limit                                    
+00006a75  __TI_auto_init_nobinit_nopinit                              
+00005dd5  __TI_decompress_lzss                                        
+00008225  __TI_decompress_none                                        
+ffffffff  __TI_pprof_out_hndl                                         
+ffffffff  __TI_prof_data_size                                         
+ffffffff  __TI_prof_data_start                                        
+00000000  __TI_static_base__                                          
+000082dd  __TI_zero_init                                              
+00005207  __aeabi_cdcmpeq                                             
+00005207  __aeabi_cdcmple                                             
+000068d1  __aeabi_d2iz                                                
+00006ab9  __aeabi_d2uiz                                               
+000019cb  __aeabi_dadd                                                
+0000336d  __aeabi_dmul                                                
+000019c1  __aeabi_dsub                                                
+000074bd  __aeabi_i2d                                                 
+00007f6b  __aeabi_idiv0                                               
+00007f6b  __aeabi_ldiv0                                               
+00007ed1  __aeabi_lmul                                                
+00005611  __aeabi_memclr                                              
+00005611  __aeabi_memclr4                                             
+00005611  __aeabi_memclr8                                             
+00004cd1  __aeabi_memcpy                                              
+00004cd1  __aeabi_memcpy4                                             
+00004cd1  __aeabi_memcpy8                                             
+00005613  __aeabi_memset                                              
+00005613  __aeabi_memset4                                             
+00005613  __aeabi_memset8                                             
+00006d7d  __aeabi_uidiv                                               
+00006d7d  __aeabi_uidivmod                                            
+00004f35  __aeabi_uldivmod                                            
+ffffffff  __binit__                                                   
+00009278  __c_args__                                                  
+0001ffa8  __ccfg                                                      
+UNDEFED   __mpu_init                                                  
+20004c00  __stack                                                     
+20000000  __start___llvm_prf_cnts                                     
+20000000  __stop___llvm_prf_cnts                                      
+00007eb9  _args_main                                                  
+000078fd  _c_int00                                                    
+20001c28  _lock                                                       
+000061af  _nop                                                        
+20000000  _sys_memory                                                 
+UNDEFED   _system_post_cinit                                          
+0000841d  _system_pre_init                                            
+20001c2c  _unlock                                                     
+00008421  abort                                                       
+00003165  aligned_alloc                                               
+ffffffff  binit                                                       
+200016bc  cardCapacity                                                
+0000657f  clkFxn                                                      
+20000520  cpy_buff                                                    
+000091e8  displayUartHWAttrs                                          
+20001694  displayUartObject                                           
+2000167a  driverlib_release_0_56883                                   
+00003731  free                                                        
+20000100  g_pfnRAMVectors                                             
+00000000  g_pfnVectors                                                
+20001c00  gpioCallbackFunctions                                       
+20001b44  gpioPinConfigs                                              
+00008f74  inPinTypes                                                  
+000080a9  main                                                        
+00000ee1  mainThread                                                  
+00008395  malloc                                                      
+00003165  memalign                                                    
+00007921  memcmp                                                      
+00004cd1  memcpy                                                      
+00005619  memset                                                      
+00008f80  outPinStrengths                                             
+00008f8c  outPinTypes                                                 
+20001a80  pOverrides                                                  
+20001760  pinHandleTable                                              
+200016cc  pinLowerBound                                               
+20001c1c  pinTable                                                    
+200016c8  pinUpperBound                                               
+200016c0  readEntry                                                   
+0000805d  resetISR                                                    
+00008ee4  resourceDB                                                  
+200016c4  sdHandle                                                    
+20000920  sdPacket                                                    
+00009274  sdspiHWAttrs                                                
+200016a0  sdspiObjects                                                
+00008fb4  spiCC26XXDMAHWAttrs                                         
+200010f8  spiCC26XXDMAObjects                                         
+00008071  strlen                                                      
+00009080  uartCC26XXHWAttrs                                           
+200012c0  uartCC26XXObjects                                           
+200015ec  uartCC26XXRingBuffer                                        
+00009268  udmaHWAttrs                                                 
+2000160c  udmaObjects                                                 
+
+
+GLOBAL SYMBOLS: SORTED BY Symbol Address 
+
+address   name                                                        
+-------   ----                                                        
+00000000  __TI_static_base__                                          
+00000000  g_pfnVectors                                                
+00000100  __SYSMEM_SIZE                                               
+00000400  __STACK_SIZE                                                
+000008f9  PowerCC26XX_auxISR                                          
+00000ee1  mainThread                                                  
+00001155  NOROM_SysCtrlSetRechargeBeforePowerDown                     
+0000138d  SPICC26XXDMA_transfer                                       
+000015c5  Power_sleep                                                 
+000017e9  RF_open                                                     
+000019c1  __aeabi_dsub                                                
+000019cb  __aeabi_dadd                                                
+00001b77  DisplayUartMin_clear                                        
+00001b79  SDSPI_initialize                                            
+00001d2d  PIN_init                                                    
+00002071  PowerCC26XX_doCalibrate                                     
+00002201  UARTCC26XX_open                                             
+00002611  UARTCC26XX_hwiIntFxn                                        
+00002759  UARTCC26XX_read                                             
+0000288f  DisplayUartMin_clearLines                                   
+000029b9  NOROM_SetupAfterColdResetWakeupFromShutDownCfg3             
+00002c01  SPICC26XXDMA_open                                           
+00002e35  Power_init                                                  
+00002f49  GPIO_setConfig                                              
+00003165  aligned_alloc                                               
+00003165  memalign                                                    
+0000326d  PowerCC26XX_standbyPolicy                                   
+0000336d  __aeabi_dmul                                                
+00003469  NOROM_SetupAfterColdResetWakeupFromShutDownCfg2             
+00003731  free                                                        
+00003819  SPICC26XXDMA_transferCancel                                 
+000038fd  UARTCC26XX_write                                            
+000039df  DisplayUartMin_init                                         
+000039e1  RFQueue_defineQueue                                         
+00003ac1  SwiP_construct                                              
+00003b99  NOROM_RFCRfTrimRead                                         
+00003c6d  RF_pendCmd                                                  
+00003d41  NOROM_RFCRTrim                                              
+00003fa1  SDSPI_write                                                 
+00004065  Power_releaseDependency                                     
+00004121  RF_postCmd                                                  
+000041d9  Power_setDependency                                         
+0000433d  TimerP_construct                                            
+000043ed  ClockP_workFuncDynamic                                      
+00004495  GPIO_init                                                   
+0000453d  NOROM_SetupTrimDevice                                       
+0000468d  NOROM_SetupAfterColdResetWakeupFromShutDownCfg1             
+00004879  SDSPI_getNumSectors                                         
+0000491d  PIN_open                                                    
+00004a5d  SwiP_dispatch                                               
+00004afd  ClockP_startup                                              
+00004c35  SDSPI_read                                                  
+00004cd1  __aeabi_memcpy                                              
+00004cd1  __aeabi_memcpy4                                             
+00004cd1  __aeabi_memcpy8                                             
+00004cd1  memcpy                                                      
+00004d6d  SemaphoreP_pend                                             
+00004f35  __aeabi_uldivmod                                            
+0000505d  SPICC26XXDMA_control                                        
+000050ed  UARTCC26XX_writeCancel                                      
+00005207  __aeabi_cdcmpeq                                             
+00005207  __aeabi_cdcmple                                             
+0000528d  CC1310_LAUNCHXL_sendExtFlashByte                            
+00005395  UARTCC26XX_close                                            
+00005419  ClockP_start                                                
+00005611  __aeabi_memclr                                              
+00005611  __aeabi_memclr4                                             
+00005611  __aeabi_memclr8                                             
+00005613  __aeabi_memset                                              
+00005613  __aeabi_memset4                                             
+00005613  __aeabi_memset8                                             
+00005619  memset                                                      
+0000568d  HwiP_construct                                              
+0000577d  ClockP_walkQueueDynamic                                     
+000057f1  NOROM_SetupSetVddrLevel                                     
+000058d5  TimerP_start                                                
+00005a23  SemaphoreP_destruct                                         
+00005a25  PowerCC26XX_initiateCalibration                             
+00005afd  NOROM_SetupGetTrimForAmpcompCtrl                            
+00005b65  NOROM_SetupGetTrimForAnabypassValue1                        
+00005bcd  NOROM_SysCtrlAdjustRechargeAfterPowerDown                   
+00005c35  NOROM_SysCtrl_DCDC_VoltageConditionalControl                
+00005c9d  PIN_add                                                     
+00005d05  SDSPI_open                                                  
+00005d6d  SwiP_post                                                   
+00005dd5  __TI_decompress_lzss                                        
+00005ea5  NOROM_OSCHF_AttemptToSwitchToXosc                           
+00005fd1  NOROM_OSCClockSourceSet                                     
+00006031  PowerCC26XX_calibrate                                       
+00006091  RF_getCurrentTime                                           
+000060f1  UARTCC26XX_control                                          
+00006151  UARTCC26XX_swiIntFxn                                        
+000061af  _nop                                                        
+000061b1  Display_doOpen                                              
+0000620d  PowerCC26XX_RCOSC_clockFunc                                 
+00006321  UDMACC26XX_open                                             
+0000637d  PIN_remove                                                  
+00006485  GPIO_write                                                  
+0000652d  SPICC26XXDMA_close                                          
+0000657f  clkFxn                                                      
+00006581  NOROM_SetupSetCacheModeAccordingToCcfgSetting               
+00006671  SemaphoreP_construct                                        
+00006761  CC1310_LAUNCHXL_wakeUpExtFlash                              
+000067ad  DisplayUartMin_open                                         
+000067f7  UARTCC26XX_readCancel                                       
+00006841  ClockP_construct                                            
+00006889  PIN_setOutputEnable                                         
+000068d1  __aeabi_d2iz                                                
+00006961  DisplayUartMin_vprintf                                      
+000069a7  RingBuf_put                                                 
+00006a31  SwiP_restore                                                
+00006a75  __TI_auto_init_nobinit_nopinit                              
+00006ab9  __aeabi_d2uiz                                               
+00006afd  CC1310_LAUNCHXL_shutDownExtFlash                            
+00006b3d  NOROM_ChipInfo_GetHwRevision                                
+00006b7d  PINCC26XX_getConfig                                         
+00006bfd  SD_init                                                     
+00006c3d  SD_open                                                     
+00006c7d  SPI_init                                                    
+00006cbd  SPI_open                                                    
+00006cfd  UART_init                                                   
+00006d3d  UART_open                                                   
+00006d7d  __aeabi_uidiv                                               
+00006d7d  __aeabi_uidivmod                                            
+00006dbd  RingBuf_get                                                 
+00006dfd  GPIO_setCallback                                            
+00006e39  NOROM_OSC_HPOSCRelativeFrequencyOffsetGet                   
+00006e75  NOROM_RFCSynthPowerDown                                     
+00006eb1  PowerCC26XX_isStableXOSC_HF                                 
+00006f65  SemaphoreP_post                                             
+00006fdd  PIN_setConfig                                               
+00007015  PIN_setInterrupt                                            
+0000704d  PIN_setOutputValue                                          
+000070bd  RF_powerConstraintRelease                                   
+00007165  TimerP_setNextTick                                          
+0000719b  UDMACC26XX_close                                            
+000071d1  ClockP_getTicksUntilInterrupt                               
+00007205  NOROM_IntRegister                                           
+00007239  NOROM_OSCHF_SwitchToRcOscTurnOffXosc                        
+0000726d  Power_releaseConstraint                                     
+000072a1  SwiP_destruct                                               
+000072d5  TimerP_initDevice                                           
+0000733d  GPIO_hwiIntFxn                                              
+0000736d  NOROM_ChipInfo_GetChipType                                  
+0000739d  NOROM_SetupSetAonRtcSubSecInc                               
+000073cd  PINCC26XX_setMux                                            
+000073fd  Power_setConstraint                                         
+0000742d  TimerP_getCurrentTick                                       
+0000745d  TimerP_setThreshold                                         
+000074bd  __aeabi_i2d                                                 
+00007519  NOROM_DDI32RegWrite                                         
+00007545  NOROM_OSCClockSourceGet                                     
+00007571  NOROM_RFCCpePatchReset                                      
+0000759d  NOROM_SetupGetTrimForRadcExtCfg                             
+00007621  Display_doPrintf                                            
+0000764d  ClockP_getSystemTicks                                       
+00007675  Display_doInit                                              
+0000769d  NOROM_AONBatMonTemperatureGetDegC                           
+000076c5  NOROM_RFCDoorbellSendTo                                     
+000076ed  NOROM_RFCOverrideSearch                                     
+00007715  Power_registerNotify                                        
+0000773d  RF_runCmd                                                   
+0000778d  SafeHapiVoid                                                
+000077dd  ClockP_getTicks                                             
+00007801  ClockP_scheduleNextTick                                     
+00007825  List_remove                                                 
+000078b5  SDSPI_close                                                 
+000078d9  TimerP_getMaxTicks                                          
+000078fd  _c_int00                                                    
+00007921  memcmp                                                      
+00007945  List_get                                                    
+00007967  List_put                                                    
+00007989  ClockP_add                                                  
+000079a9  NOROM_RFCAdi3VcoLdoVoltageMode                              
+000079c9  NOROM_SetupGetTrimForXoscHfCtl                              
+00007a09  Power_unregisterNotify                                      
+00007a29  RFQueue_nextEntry                                           
+00007b09  PIN_close                                                   
+00007b27  Power_getTransitionLatency                                  
+00007b45  SemaphoreP_constructBinary                                  
+00007b65  CC1310_LAUNCHXL_initGeneral                                 
+00007b81  HwiP_destruct                                               
+00007b9d  NOROM_ChipInfo_GetChipFamily                                
+00007bb9  NOROM_SetupGetTrimForAmpcompTh2                             
+00007bd5  NOROM_SetupGetTrimForRcOscLfRtuneCtuneTrim                  
+00007c0d  QueueP_put                                                  
+00007c45  RF_powerConstraintSet                                       
+00007c61  SwiP_disable                                                
+00007c7d  SwiP_or                                                     
+00007c99  TimerP_dynamicStub                                          
+00007ced  QueueP_get                                                  
+00007d07  SemaphoreP_createBinary                                     
+00007d21  ClockP_destruct                                             
+00007d39  ClockP_getTimeout                                           
+00007d51  HwiP_inISR                                                  
+00007d69  NOROM_AONRTCCurrentCompareValueGet                          
+00007d81  NOROM_ChipInfo_GetPackageType                               
+00007d99  NOROM_OSCHF_TurnOnXosc                                      
+00007db1  NOROM_RFCCpeIntGetAndClear                                  
+00007dc9  NOROM_SetupGetTrimForAdcShModeEn                            
+00007de1  NOROM_SetupGetTrimForAdcShVbufEn                            
+00007df9  NOROM_SetupGetTrimForAmpcompTh1                             
+00007e11  NOROM_SetupGetTrimForDblrLoopFilterResetVoltage             
+00007e29  NOROM_SetupGetTrimForRcOscLfIBiasTrim                       
+00007e41  NOROM_SetupGetTrimForXoscLfRegulatorAndCmirrwrRatio         
+00007e59  PIN_getConfig                                               
+00007e71  Power_idleFunc                                              
+00007ea1  UART_Params_init                                            
+00007eb9  _args_main                                                  
+00007ed1  __aeabi_lmul                                                
+00007ee9  DisplayUartMin_close                                        
+00007eff  HwiP_setFunc                                                
+00007f15  NOROM_ThisLibraryIsFor_CC13x0_HwRev20AndLater_HaltIfViolated
+00007f41  SemaphoreP_create                                           
+00007f57  List_clearList                                              
+00007f6b  __aeabi_idiv0                                               
+00007f6b  __aeabi_ldiv0                                               
+00007f6d  NOROM_AONRTCCurrent64BitValueGet                            
+00007f81  NOROM_IntUnregister                                         
+00007f95  PIN_getOutputValue                                          
+00007fa9  Power_disablePolicy                                         
+00007fbd  RF_Params_init                                              
+00007ff9  SPI_Params_init                                             
+00008021  TimerP_startup                                              
+0000805d  resetISR                                                    
+00008071  strlen                                                      
+00008085  HwiP_Params_init                                            
+00008097  RingBuf_construct                                           
+000080a9  main                                                        
+000080bd  ClockP_Params_init                                          
+000080cd  ClockP_getCpuFreq                                           
+000080dd  HwiP_disable                                                
+000080ed  HwiP_enableInterrupt                                        
+000080fd  HwiP_post                                                   
+0000810d  NOROM_RFCHwIntGetAndClear                                   
+0000811d  NOROM_RFCRfTrimSet                                          
+0000812d  NOROM_SetupGetTrimForXoscHfFastStart                        
+0000813d  NOROM_SetupGetTrimForXoscHfIbiastherm                       
+0000814d  PINCC26XX_getPinCount                                       
+0000815d  PowerCC26XX_schedulerDisable                                
+0000816d  Power_enablePolicy                                          
+0000819d  SemaphoreP_Params_init                                      
+000081ad  SwiP_Params_init                                            
+000081bd  TimerP_Params_init                                          
+000081ed  NOROM_VIMSModeGet                                           
+000081fb  QueueP_empty                                                
+00008209  QueueP_remove                                               
+00008217  SPICC26XXDMA_init                                           
+00008225  __TI_decompress_none                                        
+00008235  ClockP_doTick                                               
+00008241  ClockP_getSystemTickPeriod                                  
+0000824d  NOROM_CPUcpsid                                              
+00008259  NOROM_CPUcpsie                                              
+00008265  NOROM_OSC_HPOSCRelativeFrequencyOffsetToRFCoreFormatConvert 
+00008271  PIN_registerIntCb                                           
+0000827d  PowerCC26XX_schedulerRestore                                
+00008289  Power_getConstraintMask                                     
+00008295  Power_getDependencyCount                                    
+000082a1  RFQueue_getDataEntry                                        
+000082ad  RF_powerConstraintGet                                       
+000082b9  SDSPI_init                                                  
+000082c5  SwiP_getTrigger                                             
+000082d1  TimerP_getFreq                                              
+000082dd  __TI_zero_init                                              
+000082f5  SD_close                                                    
+000082ff  SD_getNumSectors                                            
+00008309  SD_getSectorSize                                            
+00008313  SD_initialize                                               
+0000831d  SD_read                                                     
+00008327  SD_write                                                    
+00008331  SPI_close                                                   
+0000833b  SPI_transfer                                                
+00008345  UART_close                                                  
+0000834f  UART_control                                                
+00008359  UART_write                                                  
+00008363  UDMACC26XX_hwiIntFxn                                        
+0000836d  Board_init                                                  
+00008375  Board_initHook                                              
+0000837d  HwiP_restore                                                
+0000838d  UARTCC26XX_init                                             
+00008395  malloc                                                      
+000083b5  ClockP_stop                                                 
+000083bb  DisplayUartMin_control                                      
+000083c1  DisplayUartMin_getType                                      
+000083c7  NOROM_CPUdelay                                              
+000083cd  QueueP_init                                                 
+000083d9  SDSPI_control                                               
+000083df  SDSPI_getSectorSize                                         
+000083e5  UARTCC26XX_readPolling                                      
+000083eb  UARTCC26XX_writePolling                                     
+000083f5  ClockP_isActive                                             
+000083f9  ClockP_setTimeout                                           
+000083fd  HwiP_enable                                                 
+000083fd  NoRTOS_start                                                
+00008401  NOROM_RFCOverrideUpdate                                     
+00008405  PowerCC26XX_switchXOSC_HF                                   
+00008409  QueueP_head                                                 
+0000840d  QueueP_next                                                 
+00008411  SemaphoreP_delete                                           
+00008415  SystemP_vsnprintf                                           
+00008419  TimerP_getCount64                                           
+0000841d  _system_pre_init                                            
+00008421  C$$EXIT                                                     
+00008421  abort                                                       
+00008ee4  resourceDB                                                  
+00008f74  inPinTypes                                                  
+00008f80  outPinStrengths                                             
+00008f8c  outPinTypes                                                 
+00008fb4  spiCC26XXDMAHWAttrs                                         
+0000902c  BoardGpioInitTable                                          
+00009058  UARTCC26XX_fxnTable                                         
+00009080  uartCC26XXHWAttrs                                           
+000090a8  SDSPI_fxnTable                                              
+000090cc  UART_defaultParams                                          
+000090f0  DisplayUartMin_fxnTable                                     
+00009110  SPI_defaultParams                                           
+0000914c  PowerCC26XX_config                                          
+00009164  SPICC26XXDMA_fxnTable                                       
+0000917c  SPI_config                                                  
+000091d4  GPIOCC26XX_config                                           
+000091e8  displayUartHWAttrs                                          
+000091fc  ADCBuf_count                                                
+000091fd  ADC_count                                                   
+000091fe  AESCCM_count                                                
+000091ff  AESGCM_count                                                
+00009200  AESCBC_count                                                
+00009201  AESCTR_count                                                
+00009202  AESECB_count                                                
+00009203  AESCTRDRBG_count                                            
+00009204  TRNG_count                                                  
+00009205  Display_count                                               
+00009206  I2C_count                                                   
+00009207  I2S_count                                                   
+00009208  NVS_count                                                   
+00009209  PWM_count                                                   
+0000920a  SD_count                                                    
+0000920b  SPI_count                                                   
+0000920c  UART_count                                                  
+0000920d  Watchdog_count                                              
+0000920e  Display_defaultParams                                       
+00009220  Display_config                                              
+0000922c  RFCC26XX_hwAttrs                                            
+00009238  SD_config                                                   
+00009244  UART_config                                                 
+00009258  PINCC26XX_hwAttrs                                           
+00009260  UDMACC26XX_config                                           
+00009268  udmaHWAttrs                                                 
+00009270  SD_defaultParams                                            
+00009274  sdspiHWAttrs                                                
+00009278  __c_args__                                                  
+00009394  __TI_Handler_Table_Base                                     
+000093a0  __TI_Handler_Table_Limit                                    
+000093d0  __TI_CINIT_Base                                             
+00009408  __TI_CINIT_Limit                                            
+0001ffa8  __ccfg                                                      
+20000000  __start___llvm_prf_cnts                                     
+20000000  __stop___llvm_prf_cnts                                      
+20000000  _sys_memory                                                 
+20000100  g_pfnRAMVectors                                             
+20000520  cpy_buff                                                    
+20000920  sdPacket                                                    
+200010f8  spiCC26XXDMAObjects                                         
+200012c0  uartCC26XXObjects                                           
+200015ec  uartCC26XXRingBuffer                                        
+2000160c  udmaObjects                                                 
+2000167a  driverlib_release_0_56883                                   
+20001694  displayUartObject                                           
+200016a0  sdspiObjects                                                
+200016bc  cardCapacity                                                
+200016c0  readEntry                                                   
+200016c4  sdHandle                                                    
+200016c8  pinUpperBound                                               
+200016cc  pinLowerBound                                               
+20001760  pinHandleTable                                              
+200017dc  PowerCC26XX_module                                          
+200018f4  HwiP_swiPIntNum                                             
+200019c4  ClockP_tickPeriod                                           
+20001a80  pOverrides                                                  
+20001b44  gpioPinConfigs                                              
+20001b74  RF_cmdPropRadioDivSetup                                     
+20001b9c  RF_cmdPropRx                                                
+20001bc0  RF_cmdFs                                                    
+20001bd8  RF_cmdPropTx                                                
+20001bf0  RF_prop                                                     
+20001c00  gpioCallbackFunctions                                       
+20001c14  SemaphoreP_defaultParams                                    
+20001c1c  pinTable                                                    
+20001c28  _lock                                                       
+20001c2c  _unlock                                                     
+20004c00  __stack                                                     
+20005000  __STACK_END                                                 
+ffffffff  __TI_pprof_out_hndl                                         
+ffffffff  __TI_prof_data_size                                         
+ffffffff  __TI_prof_data_start                                        
+ffffffff  __binit__                                                   
+ffffffff  binit                                                       
+UNDEFED   __mpu_init                                                  
+UNDEFED   _system_post_cinit                                          
+
+[398 symbols]
