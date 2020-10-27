@@ -173,11 +173,11 @@ PIN_Config pinTable[] =
 /***** Function definitions *****/
 
 /**
- *  @brief  Function to initialise the (micro)SD card driver
+ *  @brief  Function to initialise the (micro)SD card driver.
  *          It also
  *
  *  @return none
- *  @remark This function also setups up the display driver
+ *  @remark This function also setups up the display driver.
  *
  */
 static void sdSetup()
@@ -201,7 +201,7 @@ static void sdSetup()
 
     Display_printf(display, 0, 0, "Starting the SD example\n");
 
-    /* Initialize the array to write to the SD card */
+    /* Initialise the array to write to the SD card */
     for (i = 0; i < BUFFSIZE; i++) {
         sdPacket[i] = 0xA;
     }
@@ -269,6 +269,19 @@ static void sdSetup()
     SD_close(sdHandle);
 }
 
+/***** Function definitions *****/
+
+/**
+ *  @brief  Callback function attached to RX command.
+ *          It also
+ *
+ *  @param h    RF driver handle
+ *  @param ch   Command handle
+ *  @param e    Event mask
+ *
+ *  @return none
+ *
+ */
 static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
 {
 #ifdef LOG_RADIO_EVENTS
@@ -344,6 +357,7 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
     }
 }
+
 void *mainThread(void *arg0)
 {
     uint32_t curtime;
