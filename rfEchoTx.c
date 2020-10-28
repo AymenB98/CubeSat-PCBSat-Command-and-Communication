@@ -198,9 +198,10 @@ static void sdSetup()
 
     /* Initialise the array to write to the SD card */
     int i;
-    for (i = 0; i < BUFFSIZE; i++)
+    sdPacket[0] = 0xA;
+    for (i = 1; i < BUFFSIZE; i++)
     {
-        sdPacket[i] = 0xA;
+        sdPacket[i] = i;
     }
 
     /* Mount and register the SD Card */

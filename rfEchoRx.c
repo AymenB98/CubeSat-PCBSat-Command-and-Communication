@@ -320,6 +320,12 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
          */
         memcpy(txPacket, packetDataPointer, packetLength);
 
+        if(txPacket[0] == 0xA)
+        {
+            //Correct femtosat address
+            PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
+        }
+
         RFQueue_nextEntry();
     }
     else if (e & RF_EventLastCmdDone)
