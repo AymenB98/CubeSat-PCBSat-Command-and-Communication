@@ -114,7 +114,6 @@ static uint8_t* packetDataPointer;
 
 
 static uint8_t txPacket[PAYLOAD_LENGTH];
-static uint8_t checkPacket[PAYLOAD_LENGTH];
 
 #ifdef LOG_RADIO_EVENTS
 static volatile RF_EventMask eventLog[32];
@@ -136,77 +135,6 @@ PIN_Config pinTable[] =
 };
 
 /***** Function definitions *****/
-
-/**
- *  @brief  Callback function attached to RX command.
- *
- *  @param h    RF driver handle
- *  @param ch   Command handle
- *  @param e    Event mask
- *
- *  @return none
- *
- */
-static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
-{
-#ifdef LOG_RADIO_EVENTS
-    eventLog[evIndex++ & 0x1F] = e;
-#endif// LOG_RADIO_EVENT
-
-    static uint8_t ackPacket[PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1];
-    int i;
-    for(i = 0; i < PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1; i++)
-    {
-        ackPacket[i] = 0xA;
-    }
-
-    if (e & RF_EventRxEntryDone)
-    {
-        /* Successful RX */
-        /* Toggle LED2, clear LED1 to indicate RX */
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED2,
-                           !PIN_getOutputValue(Board_PIN_LED2));
-
-        /* Get current unhandled data entry */
-        currentDataEntry = RFQueue_getDataEntry();
-
-        /* Handle the packet data, located at &currentDataEntry->data:
-         * - Length is the first byte with the current configuration
-         * - Data starts from the second byte */
-        packetLength      = *(uint8_t *)(&(currentDataEntry->data));
-        packetDataPointer = (uint8_t *)(&(currentDataEntry->data) + 1);
-
-        /* Copy the payload + status byte to the rxPacket variable, and then
-         * over to the txPacket
-         */
-//        memcpy(txPacket, packetDataPointer, packetLength);
-
-        if(checkPacket[0] == 0xA)
-        {
-            //Correct femtosat address
-            PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
-        }
-        memcpy(txPacket, ackPacket, packetLength + 1);
-
-        RFQueue_nextEntry();
-    }
-    else if (e & RF_EventLastCmdDone)
-    {
-        /* Successful Echo (TX)*/
-        /* Toggle LED2, clear LED1 to indicate RX */
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED2,
-                           !PIN_getOutputValue(Board_PIN_LED2));
-
-    }
-    else // any uncaught event
-    {
-        /* Error Condition: set LED1, clear LED2 */
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
-    }
-}
 
 void *mainThread(void *arg0)
 {
@@ -351,7 +279,7 @@ void *mainThread(void *arg0)
                 // mode using CMD_PROP_RADIO_SETUP or CMD_RADIO_SETUP
                 break;
             case PROP_ERROR_NO_FS:
-                // Command sent without the synthesiser being programmed
+                // Command sent without the synthesizer being programmed
                 break;
             case PROP_ERROR_RXOVF:
                 // RX overflow observed during operation
@@ -361,5 +289,58 @@ void *mainThread(void *arg0)
                 // pool of states defined in rf_mailbox.h
                 while(1);
         }
+    }
+}
+
+static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
+{
+#ifdef LOG_RADIO_EVENTS
+    eventLog[evIndex++ & 0x1F] = e;
+#endif// LOG_RADIO_EVENTS
+
+    if (e & RF_EventRxEntryDone)
+    {
+        /* Successful RX */
+        /* Toggle LED2, clear LED1 to indicate RX */
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED2,
+                           !PIN_getOutputValue(Board_PIN_LED2));
+
+        /* Get current unhandled data entry */
+        currentDataEntry = RFQueue_getDataEntry();
+
+        /* Handle the packet data, located at &currentDataEntry->data:
+         * - Length is the first byte with the current configuration
+         * - Data starts from the second byte */
+        packetLength      = *(uint8_t *)(&(currentDataEntry->data));
+        packetDataPointer = (uint8_t *)(&(currentDataEntry->data) + 1);
+
+        /* Copy the payload + status byte to the rxPacket variable, and then
+         * over to the txPacket
+         */
+        memcpy(txPacket, packetDataPointer, packetLength);
+
+        if(txPacket[0] == 0xA)
+        {
+            //Correct femtosat address
+            PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
+        }
+
+        RFQueue_nextEntry();
+    }
+    else if (e & RF_EventLastCmdDone)
+    {
+        /* Successful Echo (TX)*/
+        /* Toggle LED2, clear LED1 to indicate RX */
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED2,
+                           !PIN_getOutputValue(Board_PIN_LED2));
+
+    }
+    else // any uncaught event
+    {
+        /* Error Condition: set LED1, clear LED2 */
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
     }
 }

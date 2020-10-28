@@ -305,13 +305,6 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
     eventLog[evIndex++ & 0x1F] = e;
 #endif// LOG_RADIO_EVENTS
 
-    static uint8_t ackPacket[PAYLOAD_LENGTH];
-    int i;
-    for(i = 0; i < PAYLOAD_LENGTH; i++)
-    {
-        ackPacket[i] = 0xA;
-    }
-
     if((e & RF_EventCmdDone) && !(e & RF_EventLastCmdDone))
     {
         /* Successful TX */
@@ -339,7 +332,7 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         memcpy(rxPacket, packetDataPointer, (packetLength + 1));
 
         /* Check the packet against what was transmitted */
-        int16_t status = memcmp(ackPacket, rxPacket, packetLength);
+        int16_t status = memcmp(txPacket, rxPacket, packetLength);
 
         if(status == 0)
         {
@@ -456,7 +449,7 @@ void *mainThread(void *arg0)
             txPacket[i] = sdPacket[i];
         }
 
-        /* Set absolute TX time to utilise automatic power management */
+        /* Set absolute TX time to utilize automatic power management */
         curtime += PACKET_INTERVAL;
         RF_cmdPropTx.startTime = curtime;
 
