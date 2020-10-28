@@ -96,6 +96,7 @@ unsigned char cpy_buff[BUFFSIZE];
 /***** Prototypes *****/
 static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e);
 static void sdSetup();
+static void sdWrite(SD_Handle sdHandle, int_fast8_t result);
 
 /***** Variable declarations *****/
 static RF_Object rfObject;
@@ -174,7 +175,6 @@ PIN_Config pinTable[] =
 
 /**
  *  @brief  Function to initialise the (micro)SD card driver.
- *          It also
  *
  *  @return none
  *  @remark This function also setups up the display driver.
@@ -183,11 +183,6 @@ PIN_Config pinTable[] =
 static void sdSetup()
 {
     int_fast8_t   result;
-    uint_fast32_t totalSectors;
-    uint_fast32_t sectorSize;
-    uint_fast32_t sectors;
-    int           i;
-
     Display_init();
     SD_init();
 
@@ -202,7 +197,9 @@ static void sdSetup()
     Display_printf(display, 0, 0, "Starting the SD example\n");
 
     /* Initialise the array to write to the SD card */
-    for (i = 0; i < BUFFSIZE; i++) {
+    int i;
+    for (i = 0; i < BUFFSIZE; i++)
+    {
         sdPacket[i] = 0xA;
     }
 
@@ -220,6 +217,23 @@ static void sdSetup()
         Display_printf(display, 0, 0, "Error initialising the SD card\n");
         while (1);
     }
+    sdWrite(sdHandle, result);
+}
+
+/**
+ *  @brief  Write to (micro)SD card and check operation.
+ *
+ *  @param sdHnalde     SD driver handle
+ *  @param result       Result of SD driver initialisation
+ *
+ *  @return none
+ *
+ */
+static void sdWrite(SD_Handle sdHandle, int_fast8_t result)
+{
+    uint_fast32_t totalSectors;
+    uint_fast32_t sectorSize;
+    uint_fast32_t sectors;
 
     totalSectors = SD_getNumSectors(sdHandle);
     sectorSize = SD_getSectorSize(sdHandle);
@@ -232,7 +246,8 @@ static void sdSetup()
     Display_printf(display, 0, 0, "Writing the array...\n");
 
     result = SD_write(sdHandle, sdPacket, STARTINGSECTOR, sectors);
-    if (result != SD_STATUS_SUCCESS) {
+    if (result != SD_STATUS_SUCCESS)
+    {
         Display_printf(display, 0, 0, "Error writing to the SD card\n");
         while (1);
     }
@@ -240,14 +255,18 @@ static void sdSetup()
 
     Display_printf(display, 0, 0, "Reading the array...\n");
     result = SD_read(sdHandle, cpy_buff, STARTINGSECTOR, sectors);
-    if (result != SD_STATUS_SUCCESS) {
+    if (result != SD_STATUS_SUCCESS)
+    {
         Display_printf(display, 0, 0, "Error reading from the SD card\n");
         while (1);
     }
 
     /* Compare data read from the SD card with expected values */
-    for (i = 0; i < BUFFSIZE; i++) {
-        if (cpy_buff[i] != sdPacket[i]) {
+    int i;
+    for (i = 0; i < BUFFSIZE; i++)
+    {
+        if (cpy_buff[i] != sdPacket[i])
+        {
             Display_printf(display, 0, 0,
                     "Data read from SD card differed from expected value\n");
             Display_printf(display, 0, 0,
@@ -269,11 +288,8 @@ static void sdSetup()
     SD_close(sdHandle);
 }
 
-/***** Function definitions *****/
-
 /**
  *  @brief  Callback function attached to RX command.
- *          It also
  *
  *  @param h    RF driver handle
  *  @param ch   Command handle
