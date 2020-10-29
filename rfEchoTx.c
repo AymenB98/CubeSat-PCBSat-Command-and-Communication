@@ -171,6 +171,18 @@ PIN_Config pinTable[] =
  PIN_TERMINATE
 };
 
+//Enum type "cubeState" moves CubeSat into different states of operation.
+enum cubeState
+{
+    ACK_PENDING,
+    ACK_RECEIVED,
+    ACK_ERROR,
+    DATA_PENDING,
+    DATA_RECEIVED,
+    DATA_ERROR,
+};
+
+
 /***** Function definitions *****/
 
 /**
@@ -305,6 +317,16 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
     eventLog[evIndex++ & 0x1F] = e;
 #endif// LOG_RADIO_EVENTS
 
+    static uint8_t ackPacket[PAYLOAD_LENGTH];
+    static uint8_t dataPacket[PAYLOAD_LENGTH];
+
+    int i;
+    for(i = 0; i < PAYLOAD_LENGTH; i++)
+    {
+        ackPacket[i] = 0xA;
+        dataPacket[i] = i;
+    }
+
     if((e & RF_EventCmdDone) && !(e & RF_EventLastCmdDone))
     {
         /* Successful TX */
@@ -332,24 +354,45 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         memcpy(rxPacket, packetDataPointer, (packetLength + 1));
 
         /* Check the packet against what was transmitted */
-        int16_t status = memcmp(txPacket, rxPacket, packetLength);
+        int16_t statusAck = memcmp(ackPacket, rxPacket, packetLength);
+        int16_t statusData = memcmp(dataPacket, rxPacket, packetLength);
+        typedef enum cubeState state_t;
+        state_t state = ACK_PENDING;
 
-        if(status == 0)
+        switch(state)
         {
-            /* Toggle LED1, clear LED2 to indicate RX */
-            PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
-                               !PIN_getOutputValue(Board_PIN_LED1));
-            PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
+        case ACK_PENDING:
+            if((statusAck == 0) || (statusData == 0))
+            {
+                /* Toggle LED1, clear LED2 to indicate RX */
+                PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
+                                   !PIN_getOutputValue(Board_PIN_LED1));
+                PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
+                state = ACK_RECEIVED;
+            }
+            else
+            {
+                /* Error Condition: set both LEDs */
+                /* If ACK packet not sent first by femtosat
+                   exchange will fail. */
+                PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
+                PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
+            }
+        case ACK_RECEIVED:
+            //Wait for data from femtosat
+            state = DATA_PENDING;
+        case DATA_PENDING:
+            /* To be in this scope, successful RX must have
+             * occurred.
+             * Therefore, jump straight to DATA_RECEIVED.
+             */
+            state = DATA_RECEIVED;
+        case DATA_RECEIVED:
+            //Log data from femtosat in microSD
         }
-        else
-        {
-            /* Error Condition: set both LEDs */
-            PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
-            PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
-        }
-
         RFQueue_nextEntry();
     }
+
     else if((e & RF_EventLastCmdDone) && !(e & RF_EventRxEntryDone))
     {
         if(bRxSuccess == true)
@@ -449,7 +492,7 @@ void *mainThread(void *arg0)
             txPacket[i] = sdPacket[i];
         }
 
-        /* Set absolute TX time to utilize automatic power management */
+        /* Set absolute TX time to utilise automatic power management */
         curtime += PACKET_INTERVAL;
         RF_cmdPropTx.startTime = curtime;
 
