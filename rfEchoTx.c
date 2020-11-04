@@ -110,6 +110,10 @@ static void dataSuccess();
 static void displaySetup();
 static void ledSetup();
 static void rfSetup();
+static void dummyCommand(uint8_t command, uint8_t numberCommands);
+static void greenBlinky();
+static void redBlinky();
+static void commandDone(bool commandFlag);
 
 /***** Variable declarations *****/
 static RF_Object rfObject;
@@ -123,8 +127,6 @@ uint_fast32_t cardCapacity;
 /* Pin driver handle */
 static PIN_Handle ledPinHandle;
 static PIN_State ledPinState;
-
-static bool dataReceived;
 
 /* Buffer which contains all Data Entries for receiving data.
  * Pragmas are needed to make sure this buffer is aligned to a 4 byte boundary
@@ -320,7 +322,7 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
 #endif// LOG_RADIO_EVENTS
 
     static uint8_t ackPacket[PAYLOAD_LENGTH];
-    static uint8_t dataPacket[PAYLOAD_LENGTH];
+    static uint8_t dataPacket[PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1];
     //When set high, this indicates that the CubeSat may go into sleep mode.
     dataReceived = 0;
 
@@ -328,8 +330,13 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
     for(i = 0; i < PAYLOAD_LENGTH; i++)
     {
         ackPacket[i] = 0xA;
+    }
+    for(i = 0; i < (PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1); i++)
+    {
         dataPacket[i] = i;
     }
+
+    dataPacket[1] = 2;
 
     if((e & RF_EventCmdDone) && !(e & RF_EventLastCmdDone))
     {
@@ -382,20 +389,24 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         {
         case ACK_PENDING:
             //Put CC1310 into sleep mode.
+            break;
 
         case ACK_RECEIVED:
             //Wait for data from femtosat
             ackSuccess();
             state = DATA_PENDING;
+            break;
 
         case DATA_PENDING:
             //Put CC1310 into sleep mode
+            break;
 
         case DATA_RECEIVED:
             //Log data from femtosat in microSD
             dataSuccess();
             //Power down radio.
             dataReceived = 1;
+            break;
 
         }
         RFQueue_nextEntry();
@@ -437,7 +448,6 @@ static void rfSleep(uint8_t delayTime)
     Display_printf(display, 0, 0, "Entering sleep mode...\n");
     RF_yield(rfHandle);
     sleep(delayTime);
-    dataReceived = 0;
 }
 
 /**
@@ -449,7 +459,7 @@ static void rfSleep(uint8_t delayTime)
 static void error()
 {
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
-    PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
 }
 
 /**
@@ -476,6 +486,7 @@ static void ackSuccess()
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
                        !PIN_getOutputValue(Board_PIN_LED1));
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
+//    Display_printf(display, 0, 0, "Ack success\n");
 }
 
 /**
@@ -641,10 +652,25 @@ static void rfSetup()
         }
 
         uint32_t cmdStatus = ((volatile RF_Op*)&RF_cmdPropTx)->status;
+        uint8_t numberCommands = rxPacket[1];
+        int j;
+        bool commandFlag;
         switch(cmdStatus)
         {
             case PROP_DONE_OK:
-                // Packet transmitted successfully
+                // Packet received with CRC OK
+                for(j = 2; j < (numberCommands + 3); j++)
+                {
+                    if((j % 2) == 0)
+                    {
+                    //Perform command.
+                    dummyCommand(rxPacket[j], numberCommands);
+                    //Do nothing for specified period.
+                    rfSleep(rxPacket[j+1]);
+                    }
+                }
+                commandFlag = 1;
+                commandDone(commandFlag);
                 break;
             case PROP_DONE_STOPPED:
                 // received CMD_STOP while transmitting packet and finished
@@ -671,14 +697,127 @@ static void rfSetup()
                 // pool of states defined in rf_mailbox.h
                 while(1);
         }
-
-        if(dataReceived)
-        {
-            rfSleep(rxPacket[3]);
-        }
     }
 }
 
+/**
+ *  @brief  Put CC1310 in sleep mode.
+ *
+ *  @param command          Command byte from ground station.
+ *  @param numberCommands   Numer of commands to perform.
+ *
+ *  @return none
+ *
+ */
+static void dummyCommand(uint8_t command, uint8_t numberCommands)
+{
+    switch(command)
+    {
+    case 2:
+        //Blink LED1
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        greenBlinky();
+        break;
+
+    case 4:
+        //Blink LED2
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        redBlinky();
+        break;
+
+    case 6:
+        //Blink LED1
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        greenBlinky();
+        break;
+
+    case 8:
+        //Blink LED2
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        redBlinky();
+        break;
+
+    case 10:
+        //Blink LED1
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        greenBlinky();
+        break;
+
+    case 12:
+        //Blink LED2
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        redBlinky();
+        break;
+    case 14:
+        //Blink LED1
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        greenBlinky();
+        break;
+    default:
+        break;
+    }
+}
+
+/**
+ *  @brief  Dummy command for testing. Blink green LED.
+ *
+ *  @return none
+ *
+ */
+static void greenBlinky()
+{
+    int i = 0;
+    while(i < 5)
+    {
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
+                           !PIN_getOutputValue(Board_PIN_LED1));
+        sleep(1);
+        i++;
+    }
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
+    sleep(1);
+}
+
+/**
+ *  @brief  Dummy command for testing. Blink red LED.
+ *
+ *  @return none
+ *
+ */
+static void redBlinky()
+{
+    int i = 0;
+    while(i < 5)
+    {
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED2,
+                           !PIN_getOutputValue(Board_PIN_LED2));
+        sleep(1);
+        i++;
+    }
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
+    sleep(1);
+}
+
+/**
+ *  @brief  Notify user that commands have been completed.
+ *
+ *  @return none
+ *
+ */
+static void commandDone(bool commandFlag)
+{
+    if(commandFlag == 1)
+    {
+        Display_printf(display, 0, 0, "Commands finished.\n");
+    }
+}
 void *mainThread(void *arg0)
 {
     displaySetup();
