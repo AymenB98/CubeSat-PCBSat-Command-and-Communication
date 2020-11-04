@@ -36,6 +36,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdio.h>
+#include <unistd.h>
 
 /* TI Drivers */
 #include <ti/drivers/rf/RF.h>
@@ -43,6 +45,7 @@
 #include <ti/drivers/pin/PINCC26XX.h>
 #include <ti/drivers/SD.h>
 #include <ti/display/Display.h>
+#include <ti/drivers/Power.h>
 
 /* Driverlib Header files */
 #include DeviceFamily_constructPath(driverlib/rf_prop_mailbox.h)
@@ -77,6 +80,8 @@
 
 #define BYTESPERKILOBYTE 1024
 
+#define DOWN_TIME 5
+
 /*
  * Set this constant to 1 in order to write to the SD card.
  * WARNING: Running this example with WRITEENABLE set to 1 will cause
@@ -97,11 +102,20 @@ unsigned char cpy_buff[BUFFSIZE];
 static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e);
 static void sdSetup();
 static void sdWrite(SD_Handle sdHandle, int_fast8_t result);
+static void rfSleep(uint8_t delayTime);
+static void error();
+static void txSuccess();
+static void ackSuccess();
+static void dataSuccess();
+static void displaySetup();
+static void ledSetup();
+static void rfSetup();
+static void dummyCommand(uint8_t command);
+static void greenBlinky();
 
 /***** Variable declarations *****/
 static RF_Object rfObject;
 static RF_Handle rfHandle;
-SD_Handle     sdHandle;
 SD_Handle     sdHandle;
 
 //Variables for SD operations
@@ -111,6 +125,8 @@ uint_fast32_t cardCapacity;
 /* Pin driver handle */
 static PIN_Handle ledPinHandle;
 static PIN_State ledPinState;
+
+static bool dataReceived;
 
 /* Buffer which contains all Data Entries for receiving data.
  * Pragmas are needed to make sure this buffer is aligned to a 4 byte boundary
@@ -171,6 +187,15 @@ PIN_Config pinTable[] =
  PIN_TERMINATE
 };
 
+//Enum type "cubeState" moves CubeSat into different states of operation.
+enum cubeState
+{
+    ACK_PENDING,
+    ACK_RECEIVED,
+    DATA_PENDING,
+    DATA_RECEIVED,
+};
+
 /***** Function definitions *****/
 
 /**
@@ -183,25 +208,16 @@ PIN_Config pinTable[] =
 static void sdSetup()
 {
     int_fast8_t   result;
-    Display_init();
     SD_init();
 
-    /* Open the display for output */
-    display = Display_open(Display_Type_UART, NULL);
-    if (display == NULL)
-    {
-        /* Failed to open display driver */
-        while (1);
-    }
-
     Display_printf(display, 0, 0, "Starting the SD example\n");
+    printf("Practice\n");
 
     /* Initialise the array to write to the SD card */
     int i;
-    sdPacket[0] = 0xA;
-    for (i = 1; i < BUFFSIZE; i++)
+    for (i = 0; i < BUFFSIZE; i++)
     {
-        sdPacket[i] = i;
+        sdPacket[i] = 0xA;
     }
 
     /* Mount and register the SD Card */
@@ -305,13 +321,22 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
     eventLog[evIndex++ & 0x1F] = e;
 #endif// LOG_RADIO_EVENTS
 
+    static uint8_t ackPacket[PAYLOAD_LENGTH];
+    static uint8_t dataPacket[PAYLOAD_LENGTH];
+    //When set high, this indicates that the CubeSat may go into sleep mode.
+    dataReceived = 0;
+
+    int i;
+    for(i = 0; i < PAYLOAD_LENGTH; i++)
+    {
+        ackPacket[i] = 0xA;
+        dataPacket[i] = i;
+    }
+
     if((e & RF_EventCmdDone) && !(e & RF_EventLastCmdDone))
     {
         /* Successful TX */
-        /* Toggle LED1, clear LED2 to indicate TX */
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
-                           !PIN_getOutputValue(Board_PIN_LED1));
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
+        txSuccess();
     }
     else if(e & RF_EventRxEntryDone)
     {
@@ -332,24 +357,52 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         memcpy(rxPacket, packetDataPointer, (packetLength + 1));
 
         /* Check the packet against what was transmitted */
-        int16_t status = memcmp(txPacket, rxPacket, packetLength);
+        int16_t statusAck = memcmp(ackPacket, rxPacket, packetLength);
+        int16_t statusData = memcmp(dataPacket, rxPacket, packetLength);
+        typedef enum cubeState state_t;
+        state_t state;
 
-        if(status == 0)
+        //Use statusAck to determine entry state.
+        if(statusAck == 0)
         {
-            /* Toggle LED1, clear LED2 to indicate RX */
-            PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
-                               !PIN_getOutputValue(Board_PIN_LED1));
-            PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
+            state = ACK_RECEIVED;
+        }
+        else if(statusData == 0)
+        {
+            state = DATA_RECEIVED;
         }
         else
         {
-            /* Error Condition: set both LEDs */
-            PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
-            PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
+            /* Error Condition: clear both LEDs */
+            /* If ACK packet not sent first by femtosat
+               exchange will fail. */
+            error();
+            state = ACK_PENDING;
         }
 
+        switch(state)
+        {
+        case ACK_PENDING:
+            //Put CC1310 into sleep mode.
+
+        case ACK_RECEIVED:
+            //Wait for data from femtosat
+            ackSuccess();
+            state = DATA_PENDING;
+
+        case DATA_PENDING:
+            //Put CC1310 into sleep mode
+
+        case DATA_RECEIVED:
+            //Log data from femtosat in microSD
+            dataSuccess();
+            //Power down radio.
+            dataReceived = 1;
+
+        }
         RFQueue_nextEntry();
     }
+
     else if((e & RF_EventLastCmdDone) && !(e & RF_EventRxEntryDone))
     {
         if(bRxSuccess == true)
@@ -363,33 +416,130 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         {
             /* RX timed out */
             /* Set LED2, clear LED1 to indicate TX */
-            PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
-            PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
+            error();
         }
     }
     else
     {
-        /* Error Condition: set both LEDs */
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
+        /* Error Condition: clear both LEDs */
+        error();
     }
 }
 
-void *mainThread(void *arg0)
+/**
+ *  @brief  Put CC1310 in sleep mode.
+ *
+ *  @param delayTime    Sleep time for CC1310.
+ *
+ *  @return none
+ *
+ */
+static void rfSleep(uint8_t delayTime)
 {
-    uint32_t curtime;
-    RF_Params rfParams;
-    RF_Params_init(&rfParams);
+    Display_printf(display, 0, 0, "Entering sleep mode...\n");
+    RF_yield(rfHandle);
+    sleep(delayTime);
+    dataReceived = 0;
+}
 
-    //Call functions to write packet to microSD.
-    sdSetup();
+/**
+ *  @brief  Set LEDs high when error occurs.
+ *
+ *  @return none
+ *
+ */
+static void error()
+{
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
+}
 
+/**
+ *  @brief  Clear LEDs on successful TX.
+ *
+ *  @return none
+ *
+ */
+static void txSuccess()
+{
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
+}
+
+/**
+ *  @brief  Successfully received ack from femtosat.
+ *
+ *  @return none
+ *
+ */
+static void ackSuccess()
+{
+    /* Toggle LED1, clear LED2 to indicate RX */
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
+                       !PIN_getOutputValue(Board_PIN_LED1));
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
+}
+
+/**
+ *  @brief  Toggle LEDs upon successful transmission.
+ *
+ *  @return none
+ *
+ */
+static void dataSuccess()
+{
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
+                       !PIN_getOutputValue(Board_PIN_LED1));
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED2,
+                       !PIN_getOutputValue(Board_PIN_LED2));
+}
+
+/**
+ *  @brief  Setup display driver.
+ *
+ *  @return none
+ *
+ */
+static void displaySetup()
+{
+    Display_init();
+
+    /* Open the display for output */
+    display = Display_open(Display_Type_UART, NULL);
+    if (display == NULL)
+    {
+        /* Failed to open display driver */
+        while (1);
+    }
+}
+
+/**
+ *  @brief  Setup LED driver.
+ *
+ *  @return none
+ *
+ */
+static void ledSetup()
+{
     /* Open LED pins */
     ledPinHandle = PIN_open(&ledPinState, pinTable);
     if (ledPinHandle == NULL)
     {
         while(1);
     }
+}
+
+/**
+ *  @brief  Setup RF params and commands.
+ *
+ *  @return none
+ *
+ */
+static void rfSetup()
+{
+    uint32_t curtime;
+    RF_Params rfParams;
+    RF_Params_init(&rfParams);
 
     if(RFQueue_defineQueue(&dataQueue,
                            rxDataEntryBuffer,
@@ -449,7 +599,7 @@ void *mainThread(void *arg0)
             txPacket[i] = sdPacket[i];
         }
 
-        /* Set absolute TX time to utilize automatic power management */
+        /* Set absolute TX time to utilise automatic power management */
         curtime += PACKET_INTERVAL;
         RF_cmdPropTx.startTime = curtime;
 
@@ -523,5 +673,62 @@ void *mainThread(void *arg0)
                 // pool of states defined in rf_mailbox.h
                 while(1);
         }
+
+        if(dataReceived)
+        {
+            //Perform command.
+            dummyCommand(rxPacket[2]);
+            //Do nothing for specified period.
+            rfSleep(rxPacket[3]);
+        }
     }
+}
+
+/**
+ *  @brief  Put CC1310 in sleep mode.
+ *
+ *  @param command  Command byte from ground station.
+ *
+ *  @return none
+ *
+ */
+static void dummyCommand(uint8_t command)
+{
+    switch(command)
+    {
+    case 0x2:
+        //Blink LED1
+        greenBlinky();
+    }
+}
+
+/**
+ *  @brief  Dummy command for testing. Blink green LED.
+ *
+ *  @return none
+ *
+ */
+static void greenBlinky()
+{
+    int i = 0;
+    while(i < 10)
+    {
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
+                           !PIN_getOutputValue(Board_PIN_LED1));
+        sleep(1);
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
+                           !PIN_getOutputValue(Board_PIN_LED1));
+        sleep(1);
+        i++;
+    }
+}
+
+void *mainThread(void *arg0)
+{
+    displaySetup();
+    ledSetup();
+    sdSetup();
+    rfSetup();
+
+    return(NULL);
 }
