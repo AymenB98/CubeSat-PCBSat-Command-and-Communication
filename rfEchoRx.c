@@ -64,8 +64,10 @@
  * 1 status byte (RF_cmdPropRx.rxConf.bAppendStatus = 0x1) */
 #define NUM_APPENDED_BYTES     2
 
-//USer pre-processor to debug display driver
+//Use pre-processor to debug display driver
 #define DISPLAY_DEBUG   0
+
+#define INSTRUCTION_COUNT 5
 
 /* Log radio events in the callback */
 //#define LOG_RADIO_EVENTS
@@ -199,8 +201,8 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
     uint8_t i;
     //Set header byte for ack.
     dataPacket[0] = 0xA;
-    //Set number of commands to 2.
-    dataPacket[1] = 2;
+    //Set number of commands.
+    dataPacket[1] = INSTRUCTION_COUNT;
     for(i = 2; i < PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1; i++)
     {
         ackPacket[i] = 0xA;

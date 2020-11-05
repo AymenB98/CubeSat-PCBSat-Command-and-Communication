@@ -82,6 +82,9 @@
 
 #define DOWN_TIME 5
 
+#define MAX_INSTRUCTIONS    14
+#define INSTRUCTION_COUNT   5
+
 /*
  * Set this constant to 1 in order to write to the SD card.
  * WARNING: Running this example with WRITEENABLE set to 1 will cause
@@ -107,7 +110,6 @@ static void timeoutError();
 static void genError();
 static void ackError();
 static void txSuccess();
-static void ackSuccess();
 static void dataSuccess();
 static void displaySetup();
 static void ledSetup();
@@ -212,8 +214,7 @@ static void sdSetup()
     int_fast8_t   result;
     SD_init();
 
-    Display_printf(display, 0, 0, "Starting the SD example\n");
-    printf("Practice\n");
+    Display_printf(display, 0, 0, "Starting the SD setup...\n");
 
     /* Initialise the array to write to the SD card */
     int i;
@@ -226,14 +227,14 @@ static void sdSetup()
     sdHandle = SD_open(Board_SD0, NULL);
     if (sdHandle == NULL)
     {
-        Display_printf(display, 0, 0, "Error starting the SD card\n");
+        Display_printf(display, 0, 0, "Error starting the SD card.\n");
         while (1);
     }
 
     result = SD_initialize(sdHandle);
     if (result != SD_STATUS_SUCCESS)
     {
-        Display_printf(display, 0, 0, "Error initialising the SD card\n");
+        Display_printf(display, 0, 0, "Error initialising the SD card.\n");
         while (1);
     }
     sdWrite(sdHandle, result);
@@ -325,16 +326,30 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
 
     static uint8_t ackPacket[PAYLOAD_LENGTH];
     static uint8_t dataPacket[PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1];
-    //When set high, this indicates that the CubeSat may go into sleep mode.
-//    dataReceived = 0;
-
     int i;
+
     for(i = 0; i < PAYLOAD_LENGTH; i++)
     {
         ackPacket[i] = 0xA;
     }
     dataPacket[0] = 0xA;
-    dataPacket[1] = 2;
+
+    //Set number of commands and handle user input error.
+    if(INSTRUCTION_COUNT > MAX_INSTRUCTIONS)
+    {
+        dataPacket[1] = MAX_INSTRUCTIONS;
+        Display_printf(display, 0, 0, "#Error: Invalid number of instructions.\n");
+    }
+    else if(INSTRUCTION_COUNT < 1)
+    {
+        dataPacket[1] = 1;
+        Display_printf(display, 0, 0, "#Error: Invalid number of instructions.\n");
+    }
+    else
+    {
+        dataPacket[1] = INSTRUCTION_COUNT;
+    }
+
     for(i = 2; i < (PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1); i++)
     {
         dataPacket[i] = i;
@@ -389,26 +404,17 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
             //Put CC1310 into sleep mode.
             break;
 
-        case ACK_RECEIVED:
-            //Wait for data from femtosat
-            ackSuccess();
-            state = DATA_PENDING;
-            break;
-
         case DATA_PENDING:
             //Put CC1310 into sleep mode
             break;
 
         case DATA_RECEIVED:
             //Log data from femtosat in microSD
-//            ackSuccess();
             dataSuccess();
             //Power down radio.
-//            dataReceived = 1;
             break;
 
         }
-//        RFQueue_nextEntry();
     }
 
     else if((e & RF_EventLastCmdDone) && !(e & RF_EventRxEntryDone))
@@ -451,7 +457,7 @@ static void rfSleep(uint8_t delayTime)
 }
 
 /**
- *  @brief  Set red LED high when error occurs.
+ *  @brief  Set red LED high when timeout error occurs.
  *
  *  @return none
  *
@@ -460,21 +466,33 @@ static void timeoutError()
 {
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
-    Display_printf(display, 0, 0, "Timeout error...\n");
+    Display_printf(display, 0, 0, "#Error: Timeout error...\n");
 }
 
+/**
+ *  @brief  Set red LED high when error occurs.
+ *
+ *  @return none
+ *
+ */
 static void genError()
 {
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
-    Display_printf(display, 0, 0, "Generic RF error...\n");
+    Display_printf(display, 0, 0, "#Error: eneric RF error...\n");
 }
 
+/**
+ *  @brief  Set red LED high when acknowledgement error occurs.
+ *
+ *  @return none
+ *
+ */
 static void ackError()
 {
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
-    Display_printf(display, 0, 0, "Ack error...\n");
+    Display_printf(display, 0, 0, "#Error: Ack error...\n");
 }
 
 /**
@@ -490,22 +508,6 @@ static void txSuccess()
 }
 
 /**
- *  @brief  Successfully received ack from femtosat.
- *
- *  @return none
- *
- */
-static void ackSuccess()
-{
-    Display_printf(display, 0, 0, "Ack received...\n");
-    /* Toggle LED1, clear LED2 to indicate RX */
-    PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
-                       !PIN_getOutputValue(Board_PIN_LED1));
-    PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
-    Display_printf(display, 0, 0, "Ack success\n");
-}
-
-/**
  *  @brief  Toggle LEDs upon successful transmission.
  *
  *  @return none
@@ -513,7 +515,6 @@ static void ackSuccess()
  */
 static void dataSuccess()
 {
-//    Display_printf(display, 0, 0, "Valid packet received...\n");
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
                        !PIN_getOutputValue(Board_PIN_LED1));
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED2,
@@ -679,14 +680,14 @@ static void rfSetup()
                 if(rxPacket[0] != 0)
                 {
                     //Loop through commands.
-                    for(j = 2; j < (numberCommands + 3); j++)
+                    for(j = 2; j < ((numberCommands*2) + 2); j++)
                     {
                         if((j % 2) == 0)
                         {
                         //Perform command.
                         dummyCommand(rxPacket[j], numberCommands);
                         //Do nothing for specified period.
-                        rfSleep(rxPacket[j+1]);
+                        rfSleep(rxPacket[j+1] / 2);
                         }
                     }
                     commandDone();
@@ -781,6 +782,56 @@ static void dummyCommand(uint8_t command, uint8_t numberCommands)
                        (command / 2), numberCommands);
         greenBlinky();
         break;
+
+    case 16:
+        //Blink LED1
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        greenBlinky();
+        break;
+
+    case 18:
+        //Blink LED2
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        redBlinky();
+        break;
+
+    case 20:
+        //Blink LED1
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        greenBlinky();
+        break;
+
+    case 22:
+        //Blink LED2
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        redBlinky();
+        break;
+
+    case 24:
+        //Blink LED1
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        greenBlinky();
+        break;
+
+    case 26:
+        //Blink LED2
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        redBlinky();
+        break;
+
+    case 28:
+        //Blink LED1
+        Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
+                       (command / 2), numberCommands);
+        greenBlinky();
+        break;
+
     default:
         Display_printf(display, 0, 0, "Setting up exchange...\n");
         break;
@@ -804,7 +855,6 @@ static void greenBlinky()
         i++;
     }
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
-    sleep(1);
 }
 
 /**
@@ -824,7 +874,6 @@ static void redBlinky()
         i++;
     }
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
-    sleep(1);
 }
 
 /**
