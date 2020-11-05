@@ -103,7 +103,9 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e);
 static void sdSetup();
 static void sdWrite(SD_Handle sdHandle, int_fast8_t result);
 static void rfSleep(uint8_t delayTime);
-static void error();
+static void timeoutError();
+static void genError();
+static void ackError();
 static void txSuccess();
 static void ackSuccess();
 static void dataSuccess();
@@ -113,7 +115,7 @@ static void rfSetup();
 static void dummyCommand(uint8_t command, uint8_t numberCommands);
 static void greenBlinky();
 static void redBlinky();
-static void commandDone(bool commandFlag);
+static void commandDone();
 
 /***** Variable declarations *****/
 static RF_Object rfObject;
@@ -324,19 +326,19 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
     static uint8_t ackPacket[PAYLOAD_LENGTH];
     static uint8_t dataPacket[PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1];
     //When set high, this indicates that the CubeSat may go into sleep mode.
-    dataReceived = 0;
+//    dataReceived = 0;
 
     int i;
     for(i = 0; i < PAYLOAD_LENGTH; i++)
     {
         ackPacket[i] = 0xA;
     }
-    for(i = 0; i < (PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1); i++)
+    dataPacket[0] = 0xA;
+    dataPacket[1] = 2;
+    for(i = 2; i < (PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1); i++)
     {
         dataPacket[i] = i;
     }
-
-    dataPacket[1] = 2;
 
     if((e & RF_EventCmdDone) && !(e & RF_EventLastCmdDone))
     {
@@ -367,12 +369,8 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         typedef enum cubeState state_t;
         state_t state;
 
-        //Use statusAck to determine entry state.
-        if(statusAck == 0)
-        {
-            state = ACK_RECEIVED;
-        }
-        else if(statusData == 0)
+        //Use statusAck and statusData to determine entry state.
+        if(statusData == 0)
         {
             state = DATA_RECEIVED;
         }
@@ -381,7 +379,7 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
             /* Error Condition: clear both LEDs */
             /* If ACK packet not sent first by femtosat
                exchange will fail. */
-            error();
+            ackError();
             state = ACK_PENDING;
         }
 
@@ -403,13 +401,14 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
 
         case DATA_RECEIVED:
             //Log data from femtosat in microSD
+//            ackSuccess();
             dataSuccess();
             //Power down radio.
-            dataReceived = 1;
+//            dataReceived = 1;
             break;
 
         }
-        RFQueue_nextEntry();
+//        RFQueue_nextEntry();
     }
 
     else if((e & RF_EventLastCmdDone) && !(e & RF_EventRxEntryDone))
@@ -425,14 +424,15 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         {
             /* RX timed out */
             /* Set LED2, clear LED1 to indicate TX */
-            error();
+            timeoutError();
         }
     }
     else
     {
-        /* Error Condition: clear both LEDs */
-        error();
+        /* Error Condition. */
+        genError();
     }
+    RFQueue_nextEntry();
 }
 
 /**
@@ -451,15 +451,30 @@ static void rfSleep(uint8_t delayTime)
 }
 
 /**
- *  @brief  Set LEDs high when error occurs.
+ *  @brief  Set red LED high when error occurs.
  *
  *  @return none
  *
  */
-static void error()
+static void timeoutError()
 {
-    PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
-    PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
+    Display_printf(display, 0, 0, "Timeout error...\n");
+}
+
+static void genError()
+{
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
+    Display_printf(display, 0, 0, "Generic RF error...\n");
+}
+
+static void ackError()
+{
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
+    PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
+    Display_printf(display, 0, 0, "Ack error...\n");
 }
 
 /**
@@ -482,11 +497,12 @@ static void txSuccess()
  */
 static void ackSuccess()
 {
+    Display_printf(display, 0, 0, "Ack received...\n");
     /* Toggle LED1, clear LED2 to indicate RX */
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
                        !PIN_getOutputValue(Board_PIN_LED1));
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
-//    Display_printf(display, 0, 0, "Ack success\n");
+    Display_printf(display, 0, 0, "Ack success\n");
 }
 
 /**
@@ -497,6 +513,7 @@ static void ackSuccess()
  */
 static void dataSuccess()
 {
+//    Display_printf(display, 0, 0, "Valid packet received...\n");
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
                        !PIN_getOutputValue(Board_PIN_LED1));
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED2,
@@ -549,6 +566,7 @@ static void rfSetup()
     uint32_t curtime;
     RF_Params rfParams;
     RF_Params_init(&rfParams);
+    bool commandFlag = 0;
 
     if(RFQueue_defineQueue(&dataQueue,
                            rxDataEntryBuffer,
@@ -600,7 +618,7 @@ static void rfSetup()
     /* Get current time */
     curtime = RF_getCurrentTime();
 
-    while(1)
+    while(!commandFlag)
     {
         uint8_t i;
         for (i = 0; i < PAYLOAD_LENGTH; i++)
@@ -654,23 +672,26 @@ static void rfSetup()
         uint32_t cmdStatus = ((volatile RF_Op*)&RF_cmdPropTx)->status;
         uint8_t numberCommands = rxPacket[1];
         int j;
-        bool commandFlag;
         switch(cmdStatus)
         {
             case PROP_DONE_OK:
-                // Packet received with CRC OK
-                for(j = 2; j < (numberCommands + 3); j++)
+                //Check RX packet has been received.
+                if(rxPacket[0] != 0)
                 {
-                    if((j % 2) == 0)
+                    //Loop through commands.
+                    for(j = 2; j < (numberCommands + 3); j++)
                     {
-                    //Perform command.
-                    dummyCommand(rxPacket[j], numberCommands);
-                    //Do nothing for specified period.
-                    rfSleep(rxPacket[j+1]);
+                        if((j % 2) == 0)
+                        {
+                        //Perform command.
+                        dummyCommand(rxPacket[j], numberCommands);
+                        //Do nothing for specified period.
+                        rfSleep(rxPacket[j+1]);
+                        }
                     }
+                    commandDone();
+                    commandFlag = 1;
                 }
-                commandFlag = 1;
-                commandDone(commandFlag);
                 break;
             case PROP_DONE_STOPPED:
                 // received CMD_STOP while transmitting packet and finished
@@ -701,10 +722,10 @@ static void rfSetup()
 }
 
 /**
- *  @brief  Put CC1310 in sleep mode.
+ *  @brief  Perform commands.
  *
  *  @param command          Command byte from ground station.
- *  @param numberCommands   Numer of commands to perform.
+ *  @param numberCommands   Number of commands to perform.
  *
  *  @return none
  *
@@ -761,6 +782,7 @@ static void dummyCommand(uint8_t command, uint8_t numberCommands)
         greenBlinky();
         break;
     default:
+        Display_printf(display, 0, 0, "Setting up exchange...\n");
         break;
     }
 }
@@ -811,12 +833,9 @@ static void redBlinky()
  *  @return none
  *
  */
-static void commandDone(bool commandFlag)
+static void commandDone()
 {
-    if(commandFlag == 1)
-    {
-        Display_printf(display, 0, 0, "Commands finished.\n");
-    }
+    Display_printf(display, 0, 0, "Commands finished.\n");
 }
 void *mainThread(void *arg0)
 {
