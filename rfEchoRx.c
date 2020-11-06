@@ -67,7 +67,7 @@
 //Use pre-processor to debug display driver
 #define DISPLAY_DEBUG   0
 
-#define INSTRUCTION_COUNT 5
+#define INSTRUCTION_COUNT 2
 
 /* Log radio events in the callback */
 //#define LOG_RADIO_EVENTS
