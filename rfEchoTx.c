@@ -82,6 +82,7 @@
 
 #define DOWN_TIME 5
 
+
 #define MAX_INSTRUCTIONS    14
 #define INSTRUCTION_COUNT   5
 
@@ -131,6 +132,8 @@ uint_fast32_t cardCapacity;
 /* Pin driver handle */
 static PIN_Handle ledPinHandle;
 static PIN_State ledPinState;
+
+static bool dataReceived;
 
 /* Buffer which contains all Data Entries for receiving data.
  * Pragmas are needed to make sure this buffer is aligned to a 4 byte boundary
@@ -384,6 +387,7 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         typedef enum cubeState state_t;
         state_t state;
 
+
         //Use statusAck and statusData to determine entry state.
         if(statusData == 0)
         {
@@ -413,7 +417,6 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
             dataSuccess();
             //Power down radio.
             break;
-
         }
     }
 
@@ -488,6 +491,7 @@ static void genError()
  *  @return none
  *
  */
+
 static void ackError()
 {
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
@@ -501,6 +505,7 @@ static void ackError()
  *  @return none
  *
  */
+
 static void txSuccess()
 {
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
@@ -719,9 +724,55 @@ static void rfSetup()
                 // pool of states defined in rf_mailbox.h
                 while(1);
         }
+
+        if(dataReceived)
+        {
+            //Perform command.
+            dummyCommand(rxPacket[2]);
+            //Do nothing for specified period.
+            rfSleep(rxPacket[3]);
+        }
     }
 }
 
+/**
+ *  @brief  Put CC1310 in sleep mode.
+ *
+ *  @param command  Command byte from ground station.
+ *
+ *  @return none
+ *
+ */
+static void dummyCommand(uint8_t command)
+{
+    switch(command)
+    {
+    case 0x2:
+        //Blink LED1
+        greenBlinky();
+    }
+}
+
+/**
+ *  @brief  Dummy command for testing. Blink green LED.
+ *
+ *  @return none
+ *
+ */
+static void greenBlinky()
+{
+    int i = 0;
+    while(i < 10)
+    {
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
+                           !PIN_getOutputValue(Board_PIN_LED1));
+        sleep(1);
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
+                           !PIN_getOutputValue(Board_PIN_LED1));
+        sleep(1);
+        i++;
+    }
+}
 /**
  *  @brief  Perform commands.
  *
