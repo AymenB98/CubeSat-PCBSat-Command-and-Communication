@@ -82,9 +82,8 @@
 
 #define DOWN_TIME 5
 
-
 #define MAX_INSTRUCTIONS    14
-#define INSTRUCTION_COUNT   5
+#define INSTRUCTION_COUNT   1
 
 /*
  * Set this constant to 1 in order to write to the SD card.
@@ -118,6 +117,7 @@ static void rfSetup();
 static void dummyCommand(uint8_t command, uint8_t numberCommands);
 static void greenBlinky();
 static void redBlinky();
+static void getRssi();
 static void commandDone();
 
 /***** Variable declarations *****/
@@ -132,8 +132,6 @@ uint_fast32_t cardCapacity;
 /* Pin driver handle */
 static PIN_Handle ledPinHandle;
 static PIN_State ledPinState;
-
-static bool dataReceived;
 
 /* Buffer which contains all Data Entries for receiving data.
  * Pragmas are needed to make sure this buffer is aligned to a 4 byte boundary
@@ -312,7 +310,7 @@ static void sdWrite(SD_Handle sdHandle, int_fast8_t result)
 }
 
 /**
- *  @brief  Callback function attached to RX command.
+ *  @brief  Callback function attached to RF command.
  *
  *  @param h    RF driver handle
  *  @param ch   Command handle
@@ -367,7 +365,6 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
     {
         // Successful RX
         bRxSuccess = true;
-
         /* Get current unhandled data entry */
         currentDataEntry = RFQueue_getDataEntry();
 
@@ -386,7 +383,6 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         int16_t statusData = memcmp(dataPacket, rxPacket, packetLength);
         typedef enum cubeState state_t;
         state_t state;
-
 
         //Use statusAck and statusData to determine entry state.
         if(statusData == 0)
@@ -417,6 +413,7 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
             dataSuccess();
             //Power down radio.
             break;
+
         }
     }
 
@@ -491,7 +488,6 @@ static void genError()
  *  @return none
  *
  */
-
 static void ackError()
 {
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
@@ -505,7 +501,6 @@ static void ackError()
  *  @return none
  *
  */
-
 static void txSuccess()
 {
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
@@ -681,7 +676,6 @@ static void rfSetup()
         switch(cmdStatus)
         {
             case PROP_DONE_OK:
-                //Check RX packet has been received.
                 if(rxPacket[0] != 0)
                 {
                     //Loop through commands.
@@ -724,55 +718,9 @@ static void rfSetup()
                 // pool of states defined in rf_mailbox.h
                 while(1);
         }
-
-        if(dataReceived)
-        {
-            //Perform command.
-            dummyCommand(rxPacket[2]);
-            //Do nothing for specified period.
-            rfSleep(rxPacket[3]);
-        }
     }
 }
 
-/**
- *  @brief  Put CC1310 in sleep mode.
- *
- *  @param command  Command byte from ground station.
- *
- *  @return none
- *
- */
-static void dummyCommand(uint8_t command)
-{
-    switch(command)
-    {
-    case 0x2:
-        //Blink LED1
-        greenBlinky();
-    }
-}
-
-/**
- *  @brief  Dummy command for testing. Blink green LED.
- *
- *  @return none
- *
- */
-static void greenBlinky()
-{
-    int i = 0;
-    while(i < 10)
-    {
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
-                           !PIN_getOutputValue(Board_PIN_LED1));
-        sleep(1);
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
-                           !PIN_getOutputValue(Board_PIN_LED1));
-        sleep(1);
-        i++;
-    }
-}
 /**
  *  @brief  Perform commands.
  *
@@ -787,10 +735,10 @@ static void dummyCommand(uint8_t command, uint8_t numberCommands)
     switch(command)
     {
     case 2:
-        //Blink LED1
+        //Use RSSI
         Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
                        (command / 2), numberCommands);
-        greenBlinky();
+        getRssi();
         break;
 
     case 4:
@@ -925,6 +873,18 @@ static void redBlinky()
         i++;
     }
     PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
+}
+
+/**
+ *  @brief  Find received signal strength of RF link.
+ *
+ *  @return none
+ *
+ */
+static void getRssi()
+{
+    int8_t rssiValue = rxStatistics.lastRssi;
+    Display_printf(display, 0, 0, "RSSI: %d\n", rssiValue);
 }
 
 /**
