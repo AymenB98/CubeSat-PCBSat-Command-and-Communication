@@ -33,10 +33,12 @@
 /***** Includes *****/
 /* Standard C Libraries */
 #include <stdlib.h>
+#include <stdio.h>
 
 /* TI Drivers */
 #include <ti/drivers/rf/RF.h>
 #include <ti/drivers/PIN.h>
+#include <ti/display/Display.h>
 
 /* Driverlib Header files */
 #include DeviceFamily_constructPath(driverlib/rf_prop_mailbox.h)
@@ -62,15 +64,26 @@
  * 1 status byte (RF_cmdPropRx.rxConf.bAppendStatus = 0x1) */
 #define NUM_APPENDED_BYTES     2
 
+//Use pre-processor to debug display driver
+#define DISPLAY_DEBUG   0
+
+#define INSTRUCTION_COUNT 5
+
 /* Log radio events in the callback */
 //#define LOG_RADIO_EVENTS
 
 /***** Prototypes *****/
 static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e);
 
+#if DISPLAY_DEBUG
+static void displaySetup();
+#endif
+
 /***** Variable declarations *****/
 static RF_Object rfObject;
 static RF_Handle rfHandle;
+typedef enum femtoState femtostate_t;
+femtostate_t state;
 
 /* Pin driver handle */
 static PIN_Handle ledPinHandle;
@@ -112,7 +125,6 @@ static rfc_dataEntryGeneral_t* currentDataEntry;
 static uint8_t packetLength;
 static uint8_t* packetDataPointer;
 
-
 static uint8_t txPacket[PAYLOAD_LENGTH];
 static uint8_t checkPacket[PAYLOAD_LENGTH];
 
@@ -120,6 +132,8 @@ static uint8_t checkPacket[PAYLOAD_LENGTH];
 static volatile RF_EventMask eventLog[32];
 static volatile uint8_t evIndex = 0;
 #endif // LOG_RADIO_EVENTS
+
+Display_Handle display;
 
 /*
  * Application LED pin configuration table:
@@ -135,7 +149,35 @@ PIN_Config pinTable[] =
  PIN_TERMINATE
 };
 
+//States for femtosat
+enum femtoState
+{
+    REQ_PENDING,
+    ACK_SEND,
+    DATA_SEND,
+};
+
 /***** Function definitions *****/
+
+/**
+ *  @brief  Simple function to setup display driver.
+ *
+ *  @return none
+ *
+ */
+#if DISPLAY_DEBUG
+static void displaySetup()
+{
+    Display_init();
+    display = Display_open(Display_Type_UART, NULL);
+    if (display == NULL)
+    {
+        /* Failed to open display driver */
+        while (1);
+    }
+}
+#endif
+
 
 /**
  *  @brief  Callback function attached to RX command.
@@ -153,11 +195,18 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
     eventLog[evIndex++ & 0x1F] = e;
 #endif// LOG_RADIO_EVENT
 
-    static uint8_t ackPacket[PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1];
-    int i;
-    for(i = 0; i < PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1; i++)
+    uint8_t ackPacket[PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1];
+    uint8_t dataPacket[PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1];
+
+    uint8_t i;
+    //Set header byte for ack.
+    dataPacket[0] = 0xA;
+    //Set number of commands.
+    dataPacket[1] = INSTRUCTION_COUNT;
+    for(i = 2; i < PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1; i++)
     {
         ackPacket[i] = 0xA;
+        dataPacket[i] = i;
     }
 
     if (e & RF_EventRxEntryDone)
@@ -182,29 +231,48 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
          */
         memcpy(checkPacket, packetDataPointer, packetLength);
 
+        //Use checkPacket to determine entry state.
         if(checkPacket[0] == 0xA)
         {
             //Correct femtosat address
-            PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
+            PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
+                               !PIN_getOutputValue(Board_PIN_LED1));
+            state = ACK_SEND;
         }
-        memcpy(txPacket, ackPacket, packetLength + 1);
+        else
+        {
+            state = REQ_PENDING;
+        }
 
+        switch(state)
+        {
+        case REQ_PENDING:
+            //Put femtosat in sleep mode.
+            break;
+        case ACK_SEND:
+            memcpy(txPacket, dataPacket, packetLength + 1);
+            break;
+        case DATA_SEND:
+            memcpy(txPacket, dataPacket, packetLength + 1);
+            break;
+        }
         RFQueue_nextEntry();
     }
     else if (e & RF_EventLastCmdDone)
     {
         /* Successful Echo (TX)*/
-        /* Toggle LED2, clear LED1 to indicate RX */
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
+        /* Toggle LED2 and LED1 to indicate RX */
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
+                           !PIN_getOutputValue(Board_PIN_LED1));
         PIN_setOutputValue(ledPinHandle, Board_PIN_LED2,
                            !PIN_getOutputValue(Board_PIN_LED2));
 
     }
     else // any uncaught event
     {
-        /* Error Condition: set LED1, clear LED2 */
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 1);
-        PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 0);
+        /* Error Condition: set LED2, clear LED1 */
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1, 0);
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED2, 1);
     }
 }
 
@@ -212,6 +280,10 @@ void *mainThread(void *arg0)
 {
     RF_Params rfParams;
     RF_Params_init(&rfParams);
+
+#if DISPLAY_DEBUG
+    displaySetup();
+#endif
 
     /* Open LED pins */
     ledPinHandle = PIN_open(&ledPinState, pinTable);
@@ -255,7 +327,6 @@ void *mainThread(void *arg0)
     RF_cmdPropTx.pPkt = txPacket;
     RF_cmdPropTx.startTrigger.triggerType = TRIG_REL_PREVEND;
     RF_cmdPropTx.startTime = TX_DELAY;
-
 
     /* Request access to the radio */
 #if defined(DeviceFamily_CC26X0R2)
