@@ -85,6 +85,7 @@
 #define MAX_INSTRUCTIONS    14
 #define INSTRUCTION_COUNT   2
 
+#define QUAT_TEST 0
 /*
  * Set this constant to 1 in order to write to the SD card.
  * WARNING: Running this example with WRITEENABLE set to 1 will cause
@@ -168,8 +169,10 @@ static dataQueue_t dataQueue;
 static rfc_dataEntryGeneral_t* currentDataEntry;
 static uint8_t packetLength;
 static uint8_t* packetDataPointer;
+static int* quatPacketDataPointer;
 
 static uint8_t txPacket[PAYLOAD_LENGTH];
+static int txQuatPacket[PAYLOAD_LENGTH];
 static uint8_t rxPacket[PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1];
 
 static volatile bool bRxSuccess = false;
@@ -569,6 +572,12 @@ static void rfSetup()
     RF_Params rfParams;
     RF_Params_init(&rfParams);
     bool commandFlag = 0;
+    int quatPacket[30] = {10, -2, -2, 10, 2, 3, -4, -6, 10};
+    int a;
+    for(a = 9; a < PAYLOAD_LENGTH; a++)
+    {
+        quatPacket[a] = a;
+    }
 
     if(RFQueue_defineQueue(&dataQueue,
                            rxDataEntryBuffer,
@@ -584,8 +593,13 @@ static void rfSetup()
 
     /* Modify CMD_PROP_TX and CMD_PROP_RX commands for application needs */
     RF_cmdPropTx.pktLen = PAYLOAD_LENGTH;
+
+#if QUAT_TEST
+    RF_cmdPropTx.pPkt = txQuatPacket;
+#endif
+
     RF_cmdPropTx.pPkt = txPacket;
-    RF_cmdPropTx.startTrigger.triggerType = TRIG_ABSTIME;
+    RF_cmdPropTx.startTrigger.triggerType = TRIG_NOW;
     RF_cmdPropTx.startTrigger.pastTrig = 1;
     RF_cmdPropTx.startTime = 0;
     RF_cmdPropTx.pNextOp = (rfc_radioOp_t *)&RF_cmdPropRx;
@@ -625,9 +639,11 @@ static void rfSetup()
         uint8_t i;
         for (i = 0; i < PAYLOAD_LENGTH; i++)
         {
-            txPacket[i] = sdPacket[i];
+                txPacket[i] = sdPacket[i];
         }
-
+#if QUAT_TEST
+        memcpy(txQuatPacket, quatPacket, PAYLOAD_LENGTH);
+#endif
         /* Set absolute TX time to utilise automatic power management */
         curtime += PACKET_INTERVAL;
         RF_cmdPropTx.startTime = curtime;
@@ -674,25 +690,26 @@ static void rfSetup()
         uint32_t cmdStatus = ((volatile RF_Op*)&RF_cmdPropTx)->status;
         uint8_t numberCommands = rxPacket[1];
         int j;
+
+        if(rxPacket[0] == 0xA)
+        {
+            //Loop through commands.
+            for(j = 2; j < ((numberCommands*2) + 2); j++)
+            {
+                if((j % 2) == 0)
+                {
+                //Perform command.
+                dummyCommand(rxPacket[j], numberCommands);
+                //Do nothing for specified period.
+                rfSleep(rxPacket[j+1] / 2);
+                }
+            }
+            commandDone();
+        }
+
         switch(cmdStatus)
         {
             case PROP_DONE_OK:
-                if(rxPacket[0] != 0)
-                {
-                    //Loop through commands.
-                    for(j = 2; j < ((numberCommands*2) + 2); j++)
-                    {
-                        if((j % 2) == 0)
-                        {
-                        //Perform command.
-                        dummyCommand(rxPacket[j], numberCommands);
-                        //Do nothing for specified period.
-                        rfSleep(rxPacket[j+1] / 2);
-                        }
-                    }
-                    commandDone();
-                    commandFlag = 1;
-                }
                 break;
             case PROP_DONE_STOPPED:
                 // received CMD_STOP while transmitting packet and finished
@@ -744,7 +761,7 @@ static void dummyCommand(uint8_t command, uint8_t totalCommands)
         break;
 
     case 0x2:
-        //Blink LED2
+        //Standby mode
         Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
                        (commandNumber), totalCommands);
         customStandby();
@@ -885,7 +902,7 @@ static void redBlinky()
 static void getRssi()
 {
     int8_t rssiValue = rxStatistics.lastRssi;
-    Display_printf(display, 0, 0, "RSSI: %d\n", rssiValue);
+    Display_printf(display, 0, 0, "RSSI: %ddBm\n", rssiValue);
 }
 
 /**
