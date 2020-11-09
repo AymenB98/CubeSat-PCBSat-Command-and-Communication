@@ -115,11 +115,11 @@ static void dataSuccess();
 static void displaySetup();
 static void ledSetup();
 static void rfSetup();
-static void dummyCommand(uint8_t command, uint8_t numberCommands);
+static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCommands);
 static void greenBlinky();
 static void redBlinky();
 static void getRssi();
-static void customStandby();
+static void customStandby(uint8_t sleepTimeMins);
 static void commandDone();
 
 /***** Variable declarations *****/
@@ -355,10 +355,13 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         dataPacket[1] = INSTRUCTION_COUNT;
     }
 
+
     for(i = 2; i < (PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1); i++)
     {
         dataPacket[i] = i;
     }
+    dataPacket[2] = 0x1;
+    dataPacket[4] = 0x22;
 
     if((e & RF_EventCmdDone) && !(e & RF_EventLastCmdDone))
     {
@@ -698,10 +701,10 @@ static void rfSetup()
             {
                 if((j % 2) == 0)
                 {
-                //Perform command.
-                dummyCommand(rxPacket[j], numberCommands);
-                //Do nothing for specified period.
-                rfSleep(rxPacket[j+1] / 2);
+                    //Perform command.
+                    dummyCommand(rxPacket[j], (j / 2), numberCommands);
+                    //Do nothing for specified period.
+                    rfSleep(rxPacket[j+1] / 2);
                 }
             }
             commandDone();
@@ -748,10 +751,11 @@ static void rfSetup()
  *  @return none
  *
  */
-static void dummyCommand(uint8_t command, uint8_t totalCommands)
+static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCommands)
 {
-    uint8_t commandNumber = command / 2;
-    switch(commandNumber)
+    uint8_t commandMask = command & 0xF;
+    uint8_t sleepTime;
+    switch(commandMask)
     {
     case 0x1:
         //Use RSSI
@@ -764,7 +768,8 @@ static void dummyCommand(uint8_t command, uint8_t totalCommands)
         //Standby mode
         Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
                        (commandNumber), totalCommands);
-        customStandby();
+        sleepTime = command >> 4;
+        customStandby(sleepTime);
         break;
 
     case 0x3:
@@ -851,6 +856,7 @@ static void dummyCommand(uint8_t command, uint8_t totalCommands)
         break;
 
     default:
+        Display_printf(display, 0, 0, "Command Mask: %d\n", commandMask);
         break;
     }
 }
@@ -913,9 +919,8 @@ static void getRssi()
  *  @return none
  *
  */
-static void customStandby()
+static void customStandby(uint8_t sleepTimeMins)
 {
-    uint8_t sleepTimeMins = 5;
     uint16_t sleepTimeSeconds = sleepTimeMins * 60;
     Display_printf(display, 0, 0, "Entering sleep mode for %d minutes...\n", sleepTimeMins);
     sleep(sleepTimeSeconds);

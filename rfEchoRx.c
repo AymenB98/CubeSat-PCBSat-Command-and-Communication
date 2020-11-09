@@ -64,24 +64,21 @@
  * 1 status byte (RF_cmdPropRx.rxConf.bAppendStatus = 0x1) */
 #define NUM_APPENDED_BYTES     2
 
-//Use pre-processor to debug display driver
-#define DISPLAY_DEBUG   0
-
 #define INSTRUCTION_COUNT 2
+
+#define QUAT_TEST 0
 
 /* Log radio events in the callback */
 //#define LOG_RADIO_EVENTS
 
 /***** Prototypes *****/
 static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e);
-
-#if DISPLAY_DEBUG
 static void displaySetup();
-#endif
 
 /***** Variable declarations *****/
 static RF_Object rfObject;
 static RF_Handle rfHandle;
+static Display_Handle display;
 typedef enum femtoState femtostate_t;
 femtostate_t state;
 
@@ -133,8 +130,6 @@ static volatile RF_EventMask eventLog[32];
 static volatile uint8_t evIndex = 0;
 #endif // LOG_RADIO_EVENTS
 
-Display_Handle display;
-
 /*
  * Application LED pin configuration table:
  *   - All LEDs board LEDs are off.
@@ -165,7 +160,6 @@ enum femtoState
  *  @return none
  *
  */
-#if DISPLAY_DEBUG
 static void displaySetup()
 {
     Display_init();
@@ -176,7 +170,6 @@ static void displaySetup()
         while (1);
     }
 }
-#endif
 
 
 /**
@@ -198,7 +191,7 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
     uint8_t ackPacket[PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1];
     uint8_t dataPacket[PAYLOAD_LENGTH + NUM_APPENDED_BYTES - 1];
 
-    uint8_t i;
+    int i;
     //Set header byte for ack.
     dataPacket[0] = 0xA;
     //Set number of commands.
@@ -208,6 +201,8 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         ackPacket[i] = 0xA;
         dataPacket[i] = i;
     }
+    dataPacket[2] = 0x1;
+    dataPacket[4] = 0x22;
 
     if (e & RF_EventRxEntryDone)
     {
@@ -223,14 +218,26 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         /* Handle the packet data, located at &currentDataEntry->data:
          * - Length is the first byte with the current configuration
          * - Data starts from the second byte */
+#if !QUAT_TEST
         packetLength      = *(uint8_t *)(&(currentDataEntry->data));
         packetDataPointer = (uint8_t *)(&(currentDataEntry->data) + 1);
+#endif
+#if QUAT_TEST
+        int checkQuatPacket[PAYLOAD_LENGTH];
+        packetLength      = *(int *)(&(currentDataEntry->data));
+        packetDataPointer = (int *)(&(currentDataEntry->data) + 1);
+#endif
+
 
         /* Copy the payload + status byte to the rxPacket variable, and then
          * over to the txPacket
          */
         memcpy(checkPacket, packetDataPointer, packetLength);
+#if QUAT_TEST
+        memcpy(checkQuatPacket, packetDataPointer, packetLength);
+#endif
 
+#if !QUAT_TEST
         //Use checkPacket to determine entry state.
         if(checkPacket[0] == 0xA)
         {
@@ -243,6 +250,25 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         {
             state = REQ_PENDING;
         }
+#endif
+
+#if QUAT_TEST
+        if(checkQuatPacket[0] == 0xA)
+        {
+            //Correct femtosat address
+            PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,
+                               !PIN_getOutputValue(Board_PIN_LED1));
+            for(i = 1; i < 9; i++)
+            {
+                Display_printf(display, 0, 0, "Quaternion[%d]: %d\n", i, checkQuatPacket[i]);
+            }
+            state = ACK_SEND;
+        }
+        else
+        {
+            state = REQ_PENDING;
+        }
+#endif
 
         switch(state)
         {
@@ -291,6 +317,8 @@ void *mainThread(void *arg0)
     {
         while(1);
     }
+
+    displaySetup();
 
     if( RFQueue_defineQueue(&dataQueue,
                             rxDataEntryBuffer,
