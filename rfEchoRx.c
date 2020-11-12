@@ -53,7 +53,7 @@
 /***** Defines *****/
 /* Packet RX/TX Configuration */
 /* Max length byte the radio will accept */
-#define PAYLOAD_LENGTH         30
+#define PAYLOAD_LENGTH         48
 /* Set Transmit (echo) delay to 100ms */
 #define TX_DELAY             (uint32_t)(4000000*0.1f)
 /* NOTE: Only two data entries supported at the moment */
@@ -64,7 +64,7 @@
  * 1 status byte (RF_cmdPropRx.rxConf.bAppendStatus = 0x1) */
 #define NUM_APPENDED_BYTES     2
 
-#define INSTRUCTION_COUNT 3
+#define INSTRUCTION_COUNT 1
 
 #define QUAT_TEST 0
 
@@ -270,7 +270,7 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
             state = REQ_PENDING;
         }
 #endif
-        uint8_t quatPacket[30] = {10, 1, 3, 0, 5, 1, 8, 0, 10, 1, 255, 0, 5, 0, 5, 0, 8, 0, 0, 1, 10};
+        uint8_t quatPacket[PAYLOAD_LENGTH] = {10, 1, 3, 1, 5, 5, 0, 4, 8, 1, 9, 255};
         switch(state)
         {
         case REQ_PENDING:

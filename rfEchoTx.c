@@ -59,7 +59,7 @@
 
 /***** Defines *****/
 /* Packet TX/RX Configuration */
-#define PAYLOAD_LENGTH      30
+#define PAYLOAD_LENGTH      48
 /* Set packet interval to 1000ms */
 #define PACKET_INTERVAL     (uint32_t)(4000000*1.0f)
 /* Set Receive timeout to 500ms */
@@ -83,7 +83,7 @@
 #define DOWN_TIME 5
 
 #define MAX_INSTRUCTIONS    14
-#define INSTRUCTION_COUNT   3
+#define INSTRUCTION_COUNT   1
 
 #define QUAT_TEST 0
 /*
@@ -115,12 +115,12 @@ static void dataSuccess();
 static void displaySetup();
 static void ledSetup();
 static void rfSetup();
-static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCommands, uint8_t quatPacket[6]);
+static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCommands);
 static void greenBlinky();
 static void redBlinky();
 static void getRssi();
 static void customStandby(uint8_t sleepTimeMins);
-static void setQuat(uint8_t packet[6]);
+static void setQuat(uint8_t packet[45]);
 static void commandDone();
 
 /***** Variable declarations *****/
@@ -700,7 +700,7 @@ static void rfSetup()
                 if((j % 2) == 0)
                 {
                     //Perform command.
-                    dummyCommand(rxPacket[j], (j / 2), numberCommands, quatPacket);
+                    dummyCommand(rxPacket[j], (j / 2), numberCommands);
                     //Do nothing for specified period.
                     rfSleep(rxPacket[j+1] / 2);
                 }
@@ -749,13 +749,13 @@ static void rfSetup()
  *  @return none
  *
  */
-static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCommands, uint8_t quatPacket[6])
+static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCommands)
 {
     uint8_t commandMask = command & 0xF;
     uint8_t i, sleepTime;
-    uint8_t quatMask[18];
+    uint8_t quatMask[45];
 
-    for(i = 0; i < 18; i++)
+    for(i = 0; i < 45; i++)
     {
         quatMask[i] = rxPacket[i+3];
     }
@@ -938,24 +938,26 @@ static void customStandby(uint8_t sleepTimeMins)
  *  @return none
  *
  */
-static void setQuat(uint8_t packet[18])
+static void setQuat(uint8_t packet[45])
 {
     uint8_t i, sign;
     uint8_t fillCount = 0;
+    uint8_t checkArray[45];
+    memcpy(checkArray, packet, PAYLOAD_LENGTH);
     int quat[9];
-    for(i = 0; i < 18; i++)
+    for(i = 0; i < 45; i++)
     {
-        if(!(i % 2))
+        if(!(i % 3))
         {
             sign = packet[i];
             switch(sign)
             {
             case 0:
-                quat[fillCount] = packet[i+1];
+                quat[fillCount] = packet[i+1] + packet[i+2];
                 fillCount++;
                 break;
             case 1:
-                quat[fillCount] = 0 - packet[i+1];
+                quat[fillCount] = -(packet[i+1] + packet[i+2]);
                 fillCount++;
                 break;
             default:
