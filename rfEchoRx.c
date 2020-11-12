@@ -270,7 +270,7 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
             state = REQ_PENDING;
         }
 #endif
-        uint8_t quatPacket[30] = {10, 1, 3, 0, 5, 1, 8};
+        uint8_t quatPacket[30] = {10, 1, 3, 0, 5, 1, 8, 0, 10, 1, 255, 0, 5, 0, 5, 0, 8, 0, 0, 1, 10};
         switch(state)
         {
         case REQ_PENDING:

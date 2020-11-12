@@ -753,9 +753,9 @@ static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCo
 {
     uint8_t commandMask = command & 0xF;
     uint8_t i, sleepTime;
-    uint8_t quatMask[4];
+    uint8_t quatMask[18];
 
-    for(i = 0; i < 4; i++)
+    for(i = 0; i < 18; i++)
     {
         quatMask[i] = rxPacket[i+3];
     }
@@ -938,12 +938,12 @@ static void customStandby(uint8_t sleepTimeMins)
  *  @return none
  *
  */
-static void setQuat(uint8_t packet[4])
+static void setQuat(uint8_t packet[18])
 {
     uint8_t i, sign;
     uint8_t fillCount = 0;
-    int quat[2];
-    for(i = 0; i < 4; i++)
+    int quat[9];
+    for(i = 0; i < 18; i++)
     {
         if(!(i % 2))
         {
@@ -963,7 +963,7 @@ static void setQuat(uint8_t packet[4])
             }
         }
     }
-    for(i = 0; i < 2; i++)
+    for(i = 0; i < 9; i++)
     {
         Display_printf(display, 0, 0, "quat[%d]: %d\n", i, quat[i]);
     }
