@@ -64,7 +64,7 @@
  * 1 status byte (RF_cmdPropRx.rxConf.bAppendStatus = 0x1) */
 #define NUM_APPENDED_BYTES     2
 
-#define INSTRUCTION_COUNT 2
+#define INSTRUCTION_COUNT 3
 
 #define QUAT_TEST 0
 
@@ -202,7 +202,8 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         dataPacket[i] = i;
     }
     dataPacket[2] = 0x1;
-    dataPacket[4] = 0x22;
+    dataPacket[4] = 0x12;
+    dataPacket[6] = 0x3;
 
     if (e & RF_EventRxEntryDone)
     {

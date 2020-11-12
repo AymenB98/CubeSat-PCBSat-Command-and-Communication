@@ -83,7 +83,7 @@
 #define DOWN_TIME 5
 
 #define MAX_INSTRUCTIONS    14
-#define INSTRUCTION_COUNT   2
+#define INSTRUCTION_COUNT   3
 
 #define QUAT_TEST 0
 /*
@@ -115,11 +115,12 @@ static void dataSuccess();
 static void displaySetup();
 static void ledSetup();
 static void rfSetup();
-static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCommands);
+static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCommands, uint8_t quatPacket[6]);
 static void greenBlinky();
 static void redBlinky();
 static void getRssi();
 static void customStandby(uint8_t sleepTimeMins);
+static void setQuat(uint8_t packet[6]);
 static void commandDone();
 
 /***** Variable declarations *****/
@@ -361,7 +362,8 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         dataPacket[i] = i;
     }
     dataPacket[2] = 0x1;
-    dataPacket[4] = 0x22;
+    dataPacket[4] = 0x12;
+    dataPacket[6] = 0x3;
 
     if((e & RF_EventCmdDone) && !(e & RF_EventLastCmdDone))
     {
@@ -575,12 +577,7 @@ static void rfSetup()
     RF_Params rfParams;
     RF_Params_init(&rfParams);
     bool commandFlag = 0;
-    int quatPacket[30] = {10, -2, -2, 10, 2, 3, -4, -6, 10};
-    int a;
-    for(a = 9; a < PAYLOAD_LENGTH; a++)
-    {
-        quatPacket[a] = a;
-    }
+    uint8_t quatPacket[6] = {10, 1, 1, 5, 0, 6};
 
     if(RFQueue_defineQueue(&dataQueue,
                            rxDataEntryBuffer,
@@ -702,7 +699,7 @@ static void rfSetup()
                 if((j % 2) == 0)
                 {
                     //Perform command.
-                    dummyCommand(rxPacket[j], (j / 2), numberCommands);
+                    dummyCommand(rxPacket[j], (j / 2), numberCommands, quatPacket);
                     //Do nothing for specified period.
                     rfSleep(rxPacket[j+1] / 2);
                 }
@@ -751,7 +748,7 @@ static void rfSetup()
  *  @return none
  *
  */
-static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCommands)
+static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCommands, uint8_t quatPacket[6])
 {
     uint8_t commandMask = command & 0xF;
     uint8_t sleepTime;
@@ -776,7 +773,7 @@ static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCo
         //Blink LED1
         Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
                        (commandNumber), totalCommands);
-        greenBlinky();
+        setQuat(quatPacket);
         break;
 
     case 0x4:
@@ -924,6 +921,44 @@ static void customStandby(uint8_t sleepTimeMins)
     uint16_t sleepTimeSeconds = sleepTimeMins * 60;
     Display_printf(display, 0, 0, "Entering sleep mode for %d minutes...\n", sleepTimeMins);
     sleep(sleepTimeSeconds);
+}
+
+/**
+ *  @brief  Interperate quaternion data.
+ *
+ *  @param  packet  Pointer to packer array.
+ *  @return none
+ *
+ */
+static void setQuat(uint8_t packet[6])
+{
+    uint8_t i, sign;
+    uint8_t fillCount = 0;
+    int quat[2];
+    for(i = 2; i < 6; i++)
+    {
+        if((i % 2))
+        {
+            sign = packet[i-1];
+            switch(sign)
+            {
+            case 0:
+                quat[fillCount] = packet[i];
+                fillCount++;
+                break;
+            case 1:
+                quat[fillCount] = 0 - packet[i];
+                fillCount++;
+                break;
+            default:
+                break;
+            }
+        }
+    }
+    for(i = 0; i < 2; i++)
+    {
+        Display_printf(display, 0, 0, "quat[%d]: %d\n", i, quat[i]);
+    }
 }
 
 /**
