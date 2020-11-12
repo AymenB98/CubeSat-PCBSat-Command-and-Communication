@@ -392,20 +392,21 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         int16_t statusData = memcmp(dataPacket, rxPacket, packetLength);
         typedef enum cubeState state_t;
         state_t state;
+        state = DATA_RECEIVED;
 
-        //Use statusAck and statusData to determine entry state.
-        if(statusData == 0)
-        {
-            state = DATA_RECEIVED;
-        }
-        else
-        {
-            /* Error Condition: clear both LEDs */
-            /* If ACK packet not sent first by femtosat
-               exchange will fail. */
-            ackError();
-            state = ACK_PENDING;
-        }
+//        //Use first RX byte to determine entry state.
+//        if(statusData == 0)
+//        {
+//            state = DATA_RECEIVED;
+//        }
+//        else
+//        {
+//            /* Error Condition: clear both LEDs */
+//            /* If ACK packet not sent first by femtosat
+//               exchange will fail. */
+//            ackError();
+//            state = ACK_PENDING;
+//        }
 
         switch(state)
         {
@@ -462,7 +463,7 @@ static void rfSleep(uint8_t delayTime)
 {
     Display_printf(display, 0, 0, "Entering sleep mode...\n");
     RF_yield(rfHandle);
-    sleep(delayTime);
+    sleep(delayTime + 30);
 }
 
 /**
@@ -751,7 +752,14 @@ static void rfSetup()
 static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCommands, uint8_t quatPacket[6])
 {
     uint8_t commandMask = command & 0xF;
-    uint8_t sleepTime;
+    uint8_t i, sleepTime;
+    uint8_t quatMask[4];
+
+    for(i = 0; i < 4; i++)
+    {
+        quatMask[i] = rxPacket[i+3];
+    }
+
     switch(commandMask)
     {
     case 0x1:
@@ -773,7 +781,7 @@ static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCo
         //Blink LED1
         Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
                        (commandNumber), totalCommands);
-        setQuat(quatPacket);
+        setQuat(quatMask);
         break;
 
     case 0x4:
@@ -930,24 +938,24 @@ static void customStandby(uint8_t sleepTimeMins)
  *  @return none
  *
  */
-static void setQuat(uint8_t packet[6])
+static void setQuat(uint8_t packet[4])
 {
     uint8_t i, sign;
     uint8_t fillCount = 0;
     int quat[2];
-    for(i = 2; i < 6; i++)
+    for(i = 0; i < 4; i++)
     {
-        if((i % 2))
+        if(!(i % 2))
         {
-            sign = packet[i-1];
+            sign = packet[i];
             switch(sign)
             {
             case 0:
-                quat[fillCount] = packet[i];
+                quat[fillCount] = packet[i+1];
                 fillCount++;
                 break;
             case 1:
-                quat[fillCount] = 0 - packet[i];
+                quat[fillCount] = 0 - packet[i+1];
                 fillCount++;
                 break;
             default:

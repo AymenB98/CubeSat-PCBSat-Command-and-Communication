@@ -270,17 +270,17 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
             state = REQ_PENDING;
         }
 #endif
-
+        uint8_t quatPacket[30] = {10, 1, 3, 0, 5, 1, 8};
         switch(state)
         {
         case REQ_PENDING:
             //Put femtosat in sleep mode.
             break;
         case ACK_SEND:
-            memcpy(txPacket, dataPacket, packetLength + 1);
+            memcpy(txPacket, quatPacket, packetLength + 1);
             break;
         case DATA_SEND:
-            memcpy(txPacket, dataPacket, packetLength + 1);
+            memcpy(txPacket, quatPacket, packetLength + 1);
             break;
         }
         RFQueue_nextEntry();
