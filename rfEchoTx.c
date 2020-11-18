@@ -59,7 +59,7 @@
 
 /***** Defines *****/
 /* Packet TX/RX Configuration */
-#define PAYLOAD_LENGTH      30
+#define PAYLOAD_LENGTH      48
 /* Set packet interval to 1000ms */
 #define PACKET_INTERVAL     (uint32_t)(4000000*1.0f)
 /* Set Receive timeout to 500ms */
@@ -83,7 +83,7 @@
 #define DOWN_TIME 5
 
 #define MAX_INSTRUCTIONS    14
-#define INSTRUCTION_COUNT   2
+#define INSTRUCTION_COUNT   1
 
 #define QUAT_TEST 0
 /*
@@ -120,6 +120,7 @@ static void greenBlinky();
 static void redBlinky();
 static void getRssi();
 static void customStandby(uint8_t sleepTimeMins);
+static void setQuat(uint8_t packet[45]);
 static void commandDone();
 
 /***** Variable declarations *****/
@@ -361,7 +362,8 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         dataPacket[i] = i;
     }
     dataPacket[2] = 0x1;
-    dataPacket[4] = 0x22;
+    dataPacket[4] = 0x12;
+    dataPacket[6] = 0x3;
 
     if((e & RF_EventCmdDone) && !(e & RF_EventLastCmdDone))
     {
@@ -390,20 +392,21 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
         int16_t statusData = memcmp(dataPacket, rxPacket, packetLength);
         typedef enum cubeState state_t;
         state_t state;
+        state = DATA_RECEIVED;
 
-        //Use statusAck and statusData to determine entry state.
-        if(statusData == 0)
-        {
-            state = DATA_RECEIVED;
-        }
-        else
-        {
-            /* Error Condition: clear both LEDs */
-            /* If ACK packet not sent first by femtosat
-               exchange will fail. */
-            ackError();
-            state = ACK_PENDING;
-        }
+//        //Use first RX byte to determine entry state.
+//        if(statusData == 0)
+//        {
+//            state = DATA_RECEIVED;
+//        }
+//        else
+//        {
+//            /* Error Condition: clear both LEDs */
+//            /* If ACK packet not sent first by femtosat
+//               exchange will fail. */
+//            ackError();
+//            state = ACK_PENDING;
+//        }
 
         switch(state)
         {
@@ -460,7 +463,7 @@ static void rfSleep(uint8_t delayTime)
 {
     Display_printf(display, 0, 0, "Entering sleep mode...\n");
     RF_yield(rfHandle);
-    sleep(delayTime);
+    sleep(delayTime + 30);
 }
 
 /**
@@ -575,12 +578,7 @@ static void rfSetup()
     RF_Params rfParams;
     RF_Params_init(&rfParams);
     bool commandFlag = 0;
-    int quatPacket[30] = {10, -2, -2, 10, 2, 3, -4, -6, 10};
-    int a;
-    for(a = 9; a < PAYLOAD_LENGTH; a++)
-    {
-        quatPacket[a] = a;
-    }
+    uint8_t quatPacket[6] = {10, 1, 1, 5, 0, 6};
 
     if(RFQueue_defineQueue(&dataQueue,
                            rxDataEntryBuffer,
@@ -754,7 +752,14 @@ static void rfSetup()
 static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCommands)
 {
     uint8_t commandMask = command & 0xF;
-    uint8_t sleepTime;
+    uint8_t i, sleepTime;
+    uint8_t quatMask[45];
+
+    for(i = 0; i < 45; i++)
+    {
+        quatMask[i] = rxPacket[i+3];
+    }
+
     switch(commandMask)
     {
     case 0x1:
@@ -776,7 +781,7 @@ static void dummyCommand(uint8_t command, uint8_t commandNumber, uint8_t totalCo
         //Blink LED1
         Display_printf(display, 0, 0, "Performing command %d out of %d...\n",
                        (commandNumber), totalCommands);
-        greenBlinky();
+        setQuat(quatMask);
         break;
 
     case 0x4:
@@ -924,6 +929,46 @@ static void customStandby(uint8_t sleepTimeMins)
     uint16_t sleepTimeSeconds = sleepTimeMins * 60;
     Display_printf(display, 0, 0, "Entering sleep mode for %d minutes...\n", sleepTimeMins);
     sleep(sleepTimeSeconds);
+}
+
+/**
+ *  @brief  Interperate quaternion data.
+ *
+ *  @param  packet  Pointer to packer array.
+ *  @return none
+ *
+ */
+static void setQuat(uint8_t packet[45])
+{
+    uint8_t i, sign;
+    uint8_t fillCount = 0;
+    uint8_t checkArray[45];
+    memcpy(checkArray, packet, PAYLOAD_LENGTH);
+    int quat[9];
+    for(i = 0; i < 45; i++)
+    {
+        if(!(i % 3))
+        {
+            sign = packet[i];
+            switch(sign)
+            {
+            case 0:
+                quat[fillCount] = packet[i+1] + packet[i+2];
+                fillCount++;
+                break;
+            case 1:
+                quat[fillCount] = -(packet[i+1] + packet[i+2]);
+                fillCount++;
+                break;
+            default:
+                break;
+            }
+        }
+    }
+    for(i = 0; i < 9; i++)
+    {
+        Display_printf(display, 0, 0, "quat[%d]: %d\n", i, quat[i]);
+    }
 }
 
 /**
