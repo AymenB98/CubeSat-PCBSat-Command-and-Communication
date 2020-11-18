@@ -67,7 +67,7 @@
 
 #define INSTRUCTION_COUNT 1
 
-#define FEMTO_ADDRESS   0xA
+#define FEMTO_ADDRESS   0xB
 
 #define QUAT_TEST 0
 
@@ -275,7 +275,7 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
             state = REQ_PENDING;
         }
 #endif
-        uint8_t quatPacket[PAYLOAD_LENGTH] = {10, 1, 3, 1, 5, 5, 0, 4, 8, 1, 9, 255};
+        uint8_t quatPacket[PAYLOAD_LENGTH] = {11, 1, 3, 1, 5, 5, 0, 4, 8, 1, 9, 255};
         switch(state)
         {
         case REQ_PENDING:

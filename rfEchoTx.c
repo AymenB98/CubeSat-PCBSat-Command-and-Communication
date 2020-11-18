@@ -85,6 +85,8 @@
 #define MAX_INSTRUCTIONS    14
 #define INSTRUCTION_COUNT   1
 
+#define FEMTO_ADDRESS   0xB
+
 #define QUAT_TEST 0
 /*
  * Set this constant to 1 in order to write to the SD card.
@@ -226,7 +228,7 @@ static void sdSetup()
     int i;
     for (i = 0; i < BUFFSIZE; i++)
     {
-        sdPacket[i] = 0xA;
+        sdPacket[i] = FEMTO_ADDRESS;
     }
 
     /* Mount and register the SD Card */
@@ -336,9 +338,9 @@ static void echoCallback(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
 
     for(i = 0; i < PAYLOAD_LENGTH; i++)
     {
-        ackPacket[i] = 0xA;
+        ackPacket[i] = FEMTO_ADDRESS;
     }
-    dataPacket[0] = 0xA;
+    dataPacket[0] = FEMTO_ADDRESS;
 
     //Set number of commands and handle user input error.
     if(INSTRUCTION_COUNT > MAX_INSTRUCTIONS)
@@ -692,7 +694,7 @@ static void rfSetup()
         uint8_t numberCommands = rxPacket[1];
         int j;
 
-        if(rxPacket[0] == 0xA)
+        if(rxPacket[0] == FEMTO_ADDRESS)
         {
             //Loop through commands.
             for(j = 2; j < ((numberCommands*2) + 2); j++)
