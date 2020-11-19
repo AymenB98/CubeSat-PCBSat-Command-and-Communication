@@ -42,6 +42,7 @@
 #include <ti/drivers/rf/RF.h>
 #include <ti/drivers/PIN.h>
 #include <ti/drivers/Power.h>
+#include <ti/display/Display.h>
 
 #include <ti/devices/DeviceFamily.h>
 #include DeviceFamily_constructPath(driverlib/interrupt.h)
@@ -63,9 +64,12 @@
 #define GROUND_ADDRESS    0xFF;
 #define FEMTO_ADDRESS   0xBB;
 
+static void displaySetup();
+
 /* Pin driver handle */
 static PIN_Handle pinHandle;
 static PIN_State pinState;
+static Display_Handle display;
 
 /*
  * Application LED pin configuration table:
@@ -82,6 +86,25 @@ static volatile bool bEchoDoneFlag;
 static bool bBlockTransmit = false;
 
 EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
+
+/**
+ *  @brief  Setup display driver.
+ *
+ *  @return none
+ *
+ */
+static void displaySetup()
+{
+    Display_init();
+
+    /* Open the display for output */
+    display = Display_open(Display_Type_UART, NULL);
+    if (display == NULL)
+    {
+        /* Failed to open display driver */
+        while (1);
+    }
+}
 
 bool isPacketCorrect(EasyLink_RxPacket *rxp, EasyLink_TxPacket *txp)
 {
@@ -156,6 +179,9 @@ void *mainThread(void *arg0)
     /* Clear LED pins */
     PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
     PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+
+    displaySetup();
+    Display_printf(display, 0, 0, "Starting CubeSat...\n");
 
 #ifndef RFEASYLINKECHO_ASYNC
     EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
@@ -285,12 +311,14 @@ void *mainThread(void *arg0)
                 /* Toggle LED2 to indicate Echo TX, clear LED1 */
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+                Display_printf(display, 0, 0, "Ack sent to ground station.\n");
             }
             else
             {
                 /* Set LED1 and clear LED2 to indicate error */
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+                Display_printf(display, 0, 0, "CubeSat TX error.\n");
             }
             //Now that ack has been sent, relay data to femtosat
             txPacket.dstAddr[0] = FEMTO_ADDRESS;
@@ -298,15 +326,16 @@ void *mainThread(void *arg0)
             result = EasyLink_transmit(&txPacket);
             if (result == EasyLink_Status_Success)
             {
-                /* Toggle LED2 to indicate Echo TX, clear LED1 */
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+                Display_printf(display, 0, 0, "CubeSat TX to femtosat successful.\n");
             }
             else
             {
                 /* Set LED1 and clear LED2 to indicate error */
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+                Display_printf(display, 0, 0, "CubeSat TX error.\n");
             }
 
             /* Switch to Receiver, set a timeout interval of 500ms */
@@ -323,18 +352,21 @@ void *mainThread(void *arg0)
                 /* Toggle LED1, clear LED2 to indicate Echo RX */
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+                Display_printf(display, 0, 0, "Ack received from femtosat.\n");
             }
             else if (result == EasyLink_Status_Rx_Timeout)
             {
                 /* Set LED2 and clear LED1 to indicate Rx Timeout */
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+                Display_printf(display, 0, 0, "Device timed out before ack received from femtosat.\n");
             }
             else
             {
                 /* Set both LED1 and LED2 to indicate error */
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+                Display_printf(display, 0, 0, "Error.\n");
             }
 
 #endif //RFEASYLINKECHO_ASYNC

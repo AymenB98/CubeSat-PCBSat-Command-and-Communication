@@ -42,6 +42,7 @@
 #include <ti/drivers/rf/RF.h>
 #include <ti/drivers/PIN.h>
 #include <ti/drivers/Power.h>
+#include <ti/display/Display.h>
 
 #include <ti/devices/DeviceFamily.h>
 #include DeviceFamily_constructPath(driverlib/interrupt.h)
@@ -62,9 +63,12 @@
 
 #define CUBESAT_ADDRESS  0xCC;
 
+static void displaySetup();
+
 /* Pin driver handle */
 static PIN_Handle pinHandle;
 static PIN_State pinState;
+static Display_Handle display;
 
 /*
  * Application LED pin configuration table:
@@ -81,6 +85,26 @@ static volatile bool bEchoDoneFlag;
 static bool bBlockTransmit = false;
 
 EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
+
+/**
+ *  @brief  Setup display driver.
+ *
+ *  @return none
+ *
+ */
+static void displaySetup()
+{
+    Display_init();
+
+    /* Open the display for output */
+    display = Display_open(Display_Type_UART, NULL);
+    if (display == NULL)
+    {
+        /* Failed to open display driver */
+        while (1);
+    }
+}
+
 
 #ifdef RFEASYLINKECHO_ASYNC
 void echoTxDoneCb(EasyLink_Status status)
@@ -140,6 +164,9 @@ void *mainThread(void *arg0)
     PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
     PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
 
+    displaySetup();
+    Display_printf(display, 0, 0, "Starting femtosat...\n");
+
 #ifndef RFEASYLINKECHO_ASYNC
     EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
 #endif //RFEASYLINKECHO_ASYNC
@@ -153,7 +180,8 @@ void *mainThread(void *arg0)
      * Modify EASYLINK_PARAM_CONFIG in easylink_config.h to change the default
      * PHY
      */
-    if (EasyLink_init(&easyLink_params) != EasyLink_Status_Success){
+    if (EasyLink_init(&easyLink_params) != EasyLink_Status_Success)
+    {
         while(1);
     }
 
@@ -203,14 +231,17 @@ void *mainThread(void *arg0)
             memcpy(&txPacket.payload, &rxPacket.payload, rxPacket.len);
             /* Permit echo transmission */
             bBlockTransmit = false;
+            Display_printf(display, 0, 0, "Packet received from CubeSat.\n");
         }
         else
         {
             /* Set LED1 and clear LED2 to indicate error */
             PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
             PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+            Display_printf(display, 0, 0, "Packet not received from CubeSat.\n");
             /* Block echo transmission */
             bBlockTransmit = true;
+
         }
 #endif // RFEASYLINKECHO_ASYNC
 
@@ -270,12 +301,14 @@ void *mainThread(void *arg0)
                 /* Toggle LED2 to indicate Echo TX, clear LED1 */
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+                Display_printf(display, 0, 0, "Ack sent to CubeSat.\n");
             }
             else
             {
                 /* Set LED1 and clear LED2 to indicate error */
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+                Display_printf(display, 0, 0, "Femtosat error.\n");
             }
 #endif //RFEASYLINKECHO_ASYNC
         }

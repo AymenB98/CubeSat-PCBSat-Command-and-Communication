@@ -41,6 +41,7 @@
 #include <ti/drivers/Power.h>
 #include <ti/drivers/rf/RF.h>
 #include <ti/drivers/timer/GPTimerCC26XX.h>
+#include <ti/display/Display.h>
 #include <ti/devices/DeviceFamily.h>
 
 /* Driverlib APIs */
@@ -63,9 +64,12 @@
 #define CUBESAT_ADDRESS      0xCC;
 #define FEMTO_ADDRESS      0xBB;
 
+static void displaySetup();
+
 /* Pin driver handle */
 static PIN_Handle pinHandle;
 static PIN_State pinState;
+static Display_Handle display;
 
 /*
  * Application LED pin configuration table:
@@ -77,7 +81,25 @@ PIN_Config pinTable[] = {
     PIN_TERMINATE
 };
 
-static uint16_t seqNumber;
+/**
+ *  @brief  Setup display driver.
+ *
+ *  @return none
+ *
+ */
+static void displaySetup()
+{
+    Display_init();
+
+    /* Open the display for output */
+    display = Display_open(Display_Type_UART, NULL);
+    if (display == NULL)
+    {
+        /* Failed to open display driver */
+        while (1);
+    }
+}
+
 
 #ifdef RFEASYLINKECHO_ASYNC
 /* GPTimer handle and timeout value */
@@ -190,6 +212,9 @@ void *mainThread(void *arg0)
     /* Clear LED pins */
     PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
     PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+
+    displaySetup();
+    Display_printf(display, 0, 0, "Starting ground station...\n");
 
 #ifdef RFEASYLINKECHO_ASYNC
     /* Reset the timeout flag */
@@ -328,12 +353,14 @@ void *mainThread(void *arg0)
             PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
             /* Turn LED2 off, in case there was a prior error */
             PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+            Display_printf(display, 0, 0, "Ground station TX successful.\n");
         }
         else
         {
             /* Set both LED1 and LED2 to indicate error */
             PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
             PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+            Display_printf(display, 0, 0, "Ground station TX error.\n");
         }
 
         /* Switch to Receiver, set a timeout interval of 500ms */
@@ -350,18 +377,23 @@ void *mainThread(void *arg0)
             /* Toggle LED1, clear LED2 to indicate Echo RX */
             PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
             PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+            Display_printf(display, 0, 0, "Ack received from CubeSat.\n");
         }
         else if (result == EasyLink_Status_Rx_Timeout)
         {
             /* Set LED2 and clear LED1 to indicate Rx Timeout */
             PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
             PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+            Display_printf(display, 0, 0,
+                           "Device timed out before ack received from CubeSat.\n");
         }
         else
         {
             /* Set both LED1 and LED2 to indicate error */
             PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
             PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+            Display_printf(display, 0, 0,
+                           "RX error.\n");
         }
 #endif //RFEASYLINKECHO_ASYNC
     }
