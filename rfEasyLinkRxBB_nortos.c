@@ -60,7 +60,7 @@
 
 #define RFEASYLINKECHO_PAYLOAD_LENGTH     30
 
-#define CUBESAT_ADDRESS  0xAA;
+#define CUBESAT_ADDRESS  0xCC;
 
 /* Pin driver handle */
 static PIN_Handle pinHandle;

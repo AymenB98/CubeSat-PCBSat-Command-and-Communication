@@ -56,11 +56,12 @@
 #include "easylink/EasyLink.h"
 
 /* Undefine to not use async mode */
-#define RFEASYLINKECHO_ASYNC
+//#define RFEASYLINKECHO_ASYNC
 
 #define RFEASYLINKECHO_PAYLOAD_LENGTH     30
 
-#define CUBESAT_ADDRESS   0xAA;
+#define GROUND_ADDRESS    0xFF;
+#define FEMTO_ADDRESS   0xBB;
 
 /* Pin driver handle */
 static PIN_Handle pinHandle;
@@ -81,6 +82,22 @@ static volatile bool bEchoDoneFlag;
 static bool bBlockTransmit = false;
 
 EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
+
+bool isPacketCorrect(EasyLink_RxPacket *rxp, EasyLink_TxPacket *txp)
+{
+    uint16_t i;
+    bool status = true;
+
+    for(i = 0; i < rxp->len; i++)
+    {
+        if(rxp->payload[i] != txp->payload[i])
+        {
+            status = false;
+            break;
+        }
+    }
+    return(status);
+}
 
 #ifdef RFEASYLINKECHO_ASYNC
 void echoTxDoneCb(EasyLink_Status status)
@@ -153,7 +170,8 @@ void *mainThread(void *arg0)
      * Modify EASYLINK_PARAM_CONFIG in easylink_config.h to change the default
      * PHY
      */
-    if (EasyLink_init(&easyLink_params) != EasyLink_Status_Success){
+    if (EasyLink_init(&easyLink_params) != EasyLink_Status_Success)
+    {
         while(1);
     }
 
@@ -221,11 +239,8 @@ void *mainThread(void *arg0)
              */
             txPacket.len = RFEASYLINKECHO_PAYLOAD_LENGTH;
 
-            /*
-             * Address filtering is enabled by default on the Rx device with the
-             * an address of 0xAA. This device must set the dstAddr accordingly.
-             */
-            txPacket.dstAddr[0] = CUBESAT_ADDRESS;
+            //Send packet back to ground station for ack.
+            txPacket.dstAddr[0] = GROUND_ADDRESS;
 
             /* Set Tx absolute time to current time + 100ms*/
             if(EasyLink_getAbsTime(&absTime) != EasyLink_Status_Success)
@@ -277,6 +292,51 @@ void *mainThread(void *arg0)
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
             }
+            //Now that ack has been sent, relay data to femtosat
+            txPacket.dstAddr[0] = FEMTO_ADDRESS;
+
+            result = EasyLink_transmit(&txPacket);
+            if (result == EasyLink_Status_Success)
+            {
+                /* Toggle LED2 to indicate Echo TX, clear LED1 */
+                PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+            }
+            else
+            {
+                /* Set LED1 and clear LED2 to indicate error */
+                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+            }
+
+            /* Switch to Receiver, set a timeout interval of 500ms */
+            rxPacket.absTime = 0;
+            rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(500);
+            result = EasyLink_receive(&rxPacket);
+
+            /* Check Received packet against what was sent, it should be identical
+             * to the transmitted packet
+             */
+            if (result == EasyLink_Status_Success &&
+                    isPacketCorrect(&rxPacket, &txPacket))
+            {
+                /* Toggle LED1, clear LED2 to indicate Echo RX */
+                PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
+                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+            }
+            else if (result == EasyLink_Status_Rx_Timeout)
+            {
+                /* Set LED2 and clear LED1 to indicate Rx Timeout */
+                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+            }
+            else
+            {
+                /* Set both LED1 and LED2 to indicate error */
+                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+            }
+
 #endif //RFEASYLINKECHO_ASYNC
         }
     }

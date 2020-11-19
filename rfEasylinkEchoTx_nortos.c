@@ -56,11 +56,12 @@
 #include "easylink/EasyLink.h"
 
 /* Undefine to not use async mode */
-#define RFEASYLINKECHO_ASYNC
+//#define RFEASYLINKECHO_ASYNC
 
 #define RFEASYLINKECHO_PAYLOAD_LENGTH     30
 
-#define FEMTO_ADDRESS       0xBB
+#define CUBESAT_ADDRESS      0xCC;
+#define FEMTO_ADDRESS      0xBB;
 
 /* Pin driver handle */
 static PIN_Handle pinHandle;
@@ -229,7 +230,8 @@ void *mainThread(void *arg0)
      * Modify EASYLINK_PARAM_CONFIG in easylink_config.h to change the default
      * PHY
      */
-    if (EasyLink_init(&easyLink_params) != EasyLink_Status_Success){
+    if (EasyLink_init(&easyLink_params) != EasyLink_Status_Success)
+    {
         while(1);
     }
 
@@ -240,12 +242,12 @@ void *mainThread(void *arg0)
      */
 
     // Packet Originator
-    while(1) {
+    while(1)
+    {
         /* Create packet with incrementing sequence number and random payload */
-        txPacket.payload[0] = (uint8_t)(seqNumber >> 8);
-        txPacket.payload[1] = (uint8_t)(seqNumber++);
+        txPacket.payload[0] = FEMTO_ADDRESS;
         uint8_t i;
-        for (i = 2; i < RFEASYLINKECHO_PAYLOAD_LENGTH; i++)
+        for (i = 1; i < RFEASYLINKECHO_PAYLOAD_LENGTH; i++)
         {
             txPacket.payload[i] = rand();
         }
@@ -256,7 +258,7 @@ void *mainThread(void *arg0)
          * Address filtering is enabled by default on the Rx device with the
          * an address of 0xAA. This device must set the dstAddr accordingly.
          */
-        txPacket.dstAddr[0] = FEMTO_ADDRESS;
+        txPacket.dstAddr[0] = CUBESAT_ADDRESS;
 
         /* Set Tx absolute time to current time + 1000ms */
         if(EasyLink_getAbsTime(&absTime) != EasyLink_Status_Success)
@@ -304,7 +306,8 @@ void *mainThread(void *arg0)
             }
 
             /* Break if timeout flag is set */
-            if(rxTimeoutFlag == true){
+            if(rxTimeoutFlag == true)
+            {
                 /* Reset the timeout flag */
                 rxTimeoutFlag = false;
                 /* RX timed out, abort */
