@@ -60,9 +60,12 @@
 /* Undefine to not use async mode */
 //#define RFEASYLINKECHO_ASYNC
 
-#define RFEASYLINKECHO_PAYLOAD_LENGTH     30
+#define RFEASYLINKECHO_PAYLOAD_LENGTH   30
 
 #define GROUND_ADDRESS    0xFF;
+
+//Set RX to timeout after 1s(1000ms)
+#define RX_TIMEOUT  500
 
 /* Buffer size used for the file copy process */
 #define BUFFSIZE 1024
@@ -368,6 +371,7 @@ void *mainThread(void *arg0)
         };
 #else
         rxPacket.absTime = 0;
+        rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
         EasyLink_Status result = EasyLink_receive(&rxPacket);
 
         if (result == EasyLink_Status_Success)
@@ -377,16 +381,30 @@ void *mainThread(void *arg0)
             PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
             /* Copy contents of RX packet to TX packet */
             memcpy(&txPacket.payload, &rxPacket.payload, rxPacket.len);
+            Display_printf(display, 0, 0, "Command received from ground station.\n");
             /* Permit echo transmission */
             bBlockTransmit = false;
         }
-        else
+        else if(result == EasyLink_Status_Rx_Timeout)
         {
-            /* Set LED1 and clear LED2 to indicate error */
+            /* Set LED1 and clear LED2 to indicate timeout */
             PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
             PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+            //Notify user that CubeSat has not received command yet.
+            Display_printf(display, 0, 0, "Timeout error: waiting for command from ground station...\n");
             /* Block echo transmission */
             bBlockTransmit = true;
+        }
+        else
+        {
+            /* Set LED1 and clear LED2 to indicate timeout */
+            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+            //Notify user that CubeSat has not received command yet.
+            Display_printf(display, 0, 0, "Error receiving command from ground station.\n");
+            /* Block echo transmission */
+            bBlockTransmit = true;
+
         }
 #endif // RFEASYLINKECHO_ASYNC
 
@@ -473,7 +491,7 @@ void *mainThread(void *arg0)
 
             /* Switch to Receiver, set a timeout interval of 500ms */
             rxPacket.absTime = 0;
-            rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(500);
+            rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
             result = EasyLink_receive(&rxPacket);
 
             /* Check Received packet against what was sent, it should be identical
