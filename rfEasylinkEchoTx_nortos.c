@@ -272,8 +272,9 @@ void *mainThread(void *arg0)
     {
         /* Create packet with incrementing sequence number and random payload */
         txPacket.payload[0] = FEMTO_ADDRESS;
+        txPacket.payload[1] = 0x1;
         uint8_t i;
-        for (i = 1; i < RFEASYLINKECHO_PAYLOAD_LENGTH; i++)
+        for (i = 2; i < RFEASYLINKECHO_PAYLOAD_LENGTH; i++)
         {
             txPacket.payload[i] = rand();
         }

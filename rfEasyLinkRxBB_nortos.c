@@ -63,6 +63,8 @@
 
 #define CUBESAT_ADDRESS  0xCC;
 
+#define BUFF_SIZE   1024
+
 static void displaySetup();
 
 /* Pin driver handle */
@@ -310,6 +312,9 @@ void *mainThread(void *arg0)
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
                 Display_printf(display, 0, 0, "Femtosat error.\n");
             }
+            //Perform command sent by CubeSat.
+            //Any futur commands added should be placed here.
+            Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[1]);
 #endif //RFEASYLINKECHO_ASYNC
         }
     }
