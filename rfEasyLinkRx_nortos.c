@@ -42,6 +42,7 @@
 #include <ti/drivers/rf/RF.h>
 #include <ti/drivers/PIN.h>
 #include <ti/drivers/Power.h>
+#include <ti/drivers/SD.h>
 #include <ti/display/Display.h>
 
 #include <ti/devices/DeviceFamily.h>
@@ -63,12 +64,34 @@
 
 #define GROUND_ADDRESS    0xFF;
 
-static void displaySetup();
+/* Buffer size used for the file copy process */
+#define BUFFSIZE 1024
 
-/* Pin driver handle */
+ /* Starting sector to write/read to */
+#define STARTINGSECTOR 0
+
+#define BYTESPERKILOBYTE 1024
+
+/*
+ * Set this constant to 1 in order to write to the SD card.
+ * WARNING: Running this example with WRITEENABLE set to 1 will cause
+ * any file system present on the SD card to be corrupted!
+ */
+#define WRITEENABLE 1
+
+static void displaySetup();
+static void sdSetup(int8_t rssi);
+static void sdWrite(SD_Handle sdHandle, int_fast8_t result);
+
+/* Driver handles */
 static PIN_Handle pinHandle;
 static PIN_State pinState;
 static Display_Handle display;
+SD_Handle sdHandle;
+
+//SD variables
+unsigned char sdPacket[BUFFSIZE];
+unsigned char cpyBuff[BUFFSIZE];
 
 /*
  * Application LED pin configuration table:
@@ -104,6 +127,113 @@ static void displaySetup()
         while (1);
     }
 }
+
+/**
+ *  @brief  Function to initialise the (micro)SD card driver.
+ *
+ *  @return none
+ *  @remark This function also setups up the display driver.
+ *
+ */
+static void sdSetup(int8_t rssi)
+{
+    int_fast8_t   result;
+    SD_init();
+
+    Display_printf(display, 0, 0, "Starting the SD setup...\n");
+
+    /* Initialise the array to write to the SD card */
+    int i;
+    sdPacket[0] = rssi;
+    for (i = 1; i < BUFFSIZE; i++)
+    {
+        sdPacket[i] = GROUND_ADDRESS;
+    }
+
+    /* Mount and register the SD Card */
+    sdHandle = SD_open(Board_SD0, NULL);
+    if (sdHandle == NULL)
+    {
+        Display_printf(display, 0, 0, "Error starting the SD card.\n");
+        while (1);
+    }
+
+    result = SD_initialize(sdHandle);
+    if (result != SD_STATUS_SUCCESS)
+    {
+        Display_printf(display, 0, 0, "Error initialising the SD card.\n");
+        while (1);
+    }
+    sdWrite(sdHandle, result);
+}
+
+
+/**
+ *  @brief  Write to (micro)SD card and check operation.
+ *
+ *  @param sdHandle     SD driver handle
+ *  @param result       Result of SD driver initialisation
+ *
+ *  @return none
+ *
+ */
+static void sdWrite(SD_Handle sdHandle, int_fast8_t result)
+{
+    uint_fast32_t sectorSize;
+    uint_fast32_t sectors;
+
+    sectorSize = SD_getSectorSize(sdHandle);
+
+    /* Calculate number of sectors taken up by the array by rounding up */
+    sectors = (sizeof(sdPacket) + sectorSize - 1) / sectorSize;
+
+#if (WRITEENABLE)
+    Display_printf(display, 0, 0, "Writing the array...\n");
+
+    result = SD_write(sdHandle, sdPacket, STARTINGSECTOR, sectors);
+    if (result != SD_STATUS_SUCCESS)
+    {
+        Display_printf(display, 0, 0, "Error writing to the SD card\n");
+        while (1);
+    }
+#endif
+
+    Display_printf(display, 0, 0, "Reading the array...\n");
+    result = SD_read(sdHandle, cpyBuff, STARTINGSECTOR, sectors);
+    if (result != SD_STATUS_SUCCESS)
+    {
+        Display_printf(display, 0, 0, "Error reading from the SD card\n");
+        while (1);
+    }
+
+    /* Compare data read from the SD card with expected values */
+    int i;
+    for (i = 0; i < BUFFSIZE; i++)
+    {
+        if (cpyBuff[i] != sdPacket[i])
+        {
+            Display_printf(display, 0, 0,
+                    "Data read from SD card differed from expected value\n");
+            Display_printf(display, 0, 0,
+                    "    Expected value for index %d: %d, got %d\n", i,
+                    sdPacket[i], cpyBuff[i]);
+            Display_printf(display, 0, 0, "Run the example with WRITEENABLE "
+                    "= 1 to write expected values to the SD card\n");
+            break;
+        }
+    }
+
+    if (i == BUFFSIZE)
+    {
+        Display_printf(display, 0, 0,
+                "Data read from SD card matched expected values\n");
+        //Make sure to convert from unsigned char to signed integer to display RSS correctly.
+        Display_printf(display, 0, 0, "Data from SD card: %d\n", (int8_t)sdPacket[0]);
+    }
+
+    SD_close(sdHandle);
+}
+
 
 bool isPacketCorrect(EasyLink_RxPacket *rxp, EasyLink_TxPacket *txp)
 {
@@ -352,6 +482,9 @@ void *mainThread(void *arg0)
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
                 Display_printf(display, 0, 0, "Ack received from femtosat.\n");
+                Display_printf(display, 0, 0, "%x RSSI: %ddBm\n", txPacket.dstAddr[0], rxPacket.rssi);
+                //Log successful exchange in microSD card.
+                sdSetup(rxPacket.rssi);
             }
             else if (result == EasyLink_Status_Rx_Timeout)
             {
@@ -367,6 +500,7 @@ void *mainThread(void *arg0)
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
                 Display_printf(display, 0, 0, "Error.\n");
             }
+
 
 #endif //RFEASYLINKECHO_ASYNC
         }
