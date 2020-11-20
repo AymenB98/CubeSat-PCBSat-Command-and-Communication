@@ -62,7 +62,6 @@
 #define RFEASYLINKECHO_PAYLOAD_LENGTH     30
 
 #define GROUND_ADDRESS    0xFF;
-#define FEMTO_ADDRESS   0xBB;
 
 static void displaySetup();
 
@@ -321,7 +320,7 @@ void *mainThread(void *arg0)
                 Display_printf(display, 0, 0, "CubeSat TX error.\n");
             }
             //Now that ack has been sent, relay data to femtosat
-            txPacket.dstAddr[0] = FEMTO_ADDRESS;
+            txPacket.dstAddr[0] = txPacket.payload[0];
 
             result = EasyLink_transmit(&txPacket);
             if (result == EasyLink_Status_Success)
