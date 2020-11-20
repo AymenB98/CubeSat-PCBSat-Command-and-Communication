@@ -507,7 +507,7 @@ void *mainThread(void *arg0)
 
             //Now that ack has been sent, relay data to ground station.
             txPacket.dstAddr[0] = GROUND_ADDRESS;
-            txPacket.payload[0] = rxPacket.rssi;
+            txPacket.payload[0] = (uint8_t)sdPacket[0];
 
             result = EasyLink_transmit(&txPacket);
             if (result == EasyLink_Status_Success)
