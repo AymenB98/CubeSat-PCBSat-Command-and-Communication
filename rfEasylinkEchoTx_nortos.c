@@ -59,9 +59,10 @@
 /* Undefine to not use async mode */
 //#define RFEASYLINKECHO_ASYNC
 
-#define RFEASYLINKECHO_PAYLOAD_LENGTH     30
+#define RFEASYLINKECHO_PAYLOAD_LENGTH   30
+#define RX_TIMEOUT   500
 
-#define CUBESAT_ADDRESS      0xCC;
+#define CUBESAT_ADDRESS     0xCC;
 #define FEMTO_ADDRESS      0xBB;
 
 static void displaySetup();
@@ -365,7 +366,7 @@ void *mainThread(void *arg0)
 
         /* Switch to Receiver, set a timeout interval of 500ms */
         rxPacket.absTime = 0;
-        rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(500);
+        rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
         result = EasyLink_receive(&rxPacket);
 
         /* Check Received packet against what was sent, it should be identical
@@ -395,6 +396,40 @@ void *mainThread(void *arg0)
             Display_printf(display, 0, 0,
                            "RX error.\n");
         }
+
+        //Restart RX mode and wait for data from CubeSat.
+        rxPacket.absTime = 0;
+        rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
+        result = EasyLink_receive(&rxPacket);
+        uint8_t femtoAddr = FEMTO_ADDRESS;
+
+        //No need to check the packet since this is a data transmission.
+        if (result == EasyLink_Status_Success)
+        {
+            /* Toggle LED1, clear LED2 to indicate Echo RX */
+            PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
+            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+            //Remember to cast RSSI value from unsigned integer to signed integer.
+            Display_printf(display, 0, 0, "Data received from CubeSat: %x -> %ddBm.\n", femtoAddr,
+                           (int8_t)rxPacket.payload[0]);
+        }
+        else if (result == EasyLink_Status_Rx_Timeout)
+        {
+            /* Set LED2 and clear LED1 to indicate Rx Timeout */
+            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+            Display_printf(display, 0, 0,
+                           "Device timed out before data received from CubeSat.\n");
+        }
+        else
+        {
+            /* Set both LED1 and LED2 to indicate error */
+            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+            Display_printf(display, 0, 0,
+                           "RX error.\n");
+        }
+
 #endif //RFEASYLINKECHO_ASYNC
     }
 }

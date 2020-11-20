@@ -79,7 +79,7 @@
  */
 #define WRITEENABLE 1
 
-static void displaySetup();
+static void driverSetup();
 static void sdSetup(int8_t rssi);
 static void sdWrite(SD_Handle sdHandle, int_fast8_t result);
 
@@ -110,13 +110,24 @@ static bool bBlockTransmit = false;
 EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
 
 /**
- *  @brief  Setup display driver.
+ *  @brief  Setup LED and display drivers.
  *
  *  @return none
  *
  */
-static void displaySetup()
+static void driverSetup()
 {
+    /* Open LED pins */
+    pinHandle = PIN_open(&pinState, pinTable);
+    if (pinHandle == NULL)
+    {
+        while(1);
+    }
+
+    /* Clear LED pins */
+    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+
     Display_init();
 
     /* Open the display for output */
@@ -126,18 +137,20 @@ static void displaySetup()
         /* Failed to open display driver */
         while (1);
     }
+
+    Display_printf(display, 0, 0, "Starting CubeSat...\n");
 }
 
 /**
  *  @brief  Function to initialise the (micro)SD card driver.
  *
- *  @return none
+ *  @param  rssi    RSSI value of RF link.
  *  @remark This function also setups up the display driver.
  *
  */
 static void sdSetup(int8_t rssi)
 {
-    int_fast8_t   result;
+    int_fast8_t result;
     SD_init();
 
     Display_printf(display, 0, 0, "Starting the SD setup...\n");
@@ -145,6 +158,7 @@ static void sdSetup(int8_t rssi)
     /* Initialise the array to write to the SD card */
     int i;
     sdPacket[0] = rssi;
+    //Fill the rest of the array with the ground address.
     for (i = 1; i < BUFFSIZE; i++)
     {
         sdPacket[i] = GROUND_ADDRESS;
@@ -298,30 +312,18 @@ void echoRxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
 void *mainThread(void *arg0)
 {
     uint32_t absTime;
-    /* Open LED pins */
-    pinHandle = PIN_open(&pinState, pinTable);
-    if (pinHandle == NULL)
-    {
-        while(1);
-    }
-
-    /* Clear LED pins */
-    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-
-    displaySetup();
-    Display_printf(display, 0, 0, "Starting CubeSat...\n");
+    driverSetup();
 
 #ifndef RFEASYLINKECHO_ASYNC
     EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
 #endif //RFEASYLINKECHO_ASYNC
 
-    // Initialize the EasyLink parameters to their default values
+    //Initialise the EasyLink parameters to their default values
     EasyLink_Params easyLink_params;
     EasyLink_Params_init(&easyLink_params);
 
     /*
-     * Initialize EasyLink with the settings found in easylink_config.h
+     * Initialise EasyLink with the settings found in easylink_config.h
      * Modify EASYLINK_PARAM_CONFIG in easylink_config.h to change the default
      * PHY
      */
@@ -336,7 +338,8 @@ void *mainThread(void *arg0)
      * EasyLink_setFrequency(868000000);
      */
 
-    while(1) {
+    while(1)
+    {
 #ifdef RFEASYLINKECHO_ASYNC
         // Set the echo done flag to false, callback will
         // set it to true
@@ -449,6 +452,7 @@ void *mainThread(void *arg0)
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
                 Display_printf(display, 0, 0, "CubeSat TX error.\n");
             }
+
             //Now that ack has been sent, relay data to femtosat
             txPacket.dstAddr[0] = txPacket.payload[0];
 
@@ -501,6 +505,24 @@ void *mainThread(void *arg0)
                 Display_printf(display, 0, 0, "Error.\n");
             }
 
+            //Now that ack has been sent, relay data to ground station.
+            txPacket.dstAddr[0] = GROUND_ADDRESS;
+            txPacket.payload[0] = rxPacket.rssi;
+
+            result = EasyLink_transmit(&txPacket);
+            if (result == EasyLink_Status_Success)
+            {
+                PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+                Display_printf(display, 0, 0, "CubeSat TX to ground station successful.\n");
+            }
+            else
+            {
+                /* Set LED1 and clear LED2 to indicate error */
+                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+                Display_printf(display, 0, 0, "CubeSat TX error.\n");
+            }
 
 #endif //RFEASYLINKECHO_ASYNC
         }
