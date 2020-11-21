@@ -66,6 +66,7 @@
 #define BUFF_SIZE   1024
 
 static void displaySetup();
+static void dummyCommand(uint8_t commandID);
 
 /* Pin driver handle */
 static PIN_Handle pinHandle;
@@ -151,6 +152,31 @@ void echoRxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
     bEchoDoneFlag = true;
 }
 #endif //RFEASYLINKECHO_ASYNC
+
+/**
+ *  @brief  Perform dummyCommand
+ *
+ *  @param commandID  Specific command to be performed.
+ *  @return none
+ *
+ */
+static void dummyCommand(uint8_t commandID)
+{
+    switch(commandID)
+    {
+    case 0x1:
+        //Set green LED high for 2 seconds.
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+        sleep(2);
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+        break;
+    case 0x2:
+        //Do another command.
+        break;
+    default:
+        break;
+    }
+}
 
 void *mainThread(void *arg0)
 {
@@ -315,6 +341,7 @@ void *mainThread(void *arg0)
             //Perform command sent by CubeSat.
             //Any futur commands added should be placed here.
             Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[1]);
+            dummyCommand(rxPacket.payload[1]);
 #endif //RFEASYLINKECHO_ASYNC
         }
     }

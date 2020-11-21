@@ -315,7 +315,8 @@ void *mainThread(void *arg0)
          */
         GPTimerCC26XX_start(hTimer);
 
-        while(bEchoDoneFlag == false){
+        while(bEchoDoneFlag == false)
+        {
             bool previousHwiState = IntMasterDisable();
             /*
              * Tricky IntMasterDisable():
@@ -369,6 +370,10 @@ void *mainThread(void *arg0)
         rxPacket.absTime = 0;
         rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
         result = EasyLink_receive(&rxPacket);
+        //Flag indicating that ack has been received from CubeSat.
+        //When raised, data can be received.
+        //When held low, ground station must retransmit data to CubeSat.
+        bool ackFlag;
 
         /* Check Received packet against what was sent, it should be identical
          * to the transmitted packet
@@ -380,6 +385,7 @@ void *mainThread(void *arg0)
             PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
             PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
             Display_printf(display, 0, 0, "Ack received from CubeSat.\n");
+            ackFlag = true;
         }
         else if (result == EasyLink_Status_Rx_Timeout)
         {
@@ -388,6 +394,7 @@ void *mainThread(void *arg0)
             PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
             Display_printf(display, 0, 0,
                            "Device timed out before ack received from CubeSat.\n");
+            ackFlag = false;
         }
         else
         {
@@ -396,39 +403,43 @@ void *mainThread(void *arg0)
             PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
             Display_printf(display, 0, 0,
                            "RX error.\n");
+            ackFlag = false;
         }
 
-        //Restart RX mode and wait for data from CubeSat.
-        rxPacket.absTime = 0;
-        rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
-        result = EasyLink_receive(&rxPacket);
-        uint8_t femtoAddr = FEMTO_ADDRESS;
+        if(ackFlag)
+        {
+            //Restart RX mode and wait for data from CubeSat.
+            rxPacket.absTime = 0;
+            rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
+            result = EasyLink_receive(&rxPacket);
+            uint8_t femtoAddr = FEMTO_ADDRESS;
 
-        //No need to check the packet since this is a data transmission.
-        if (result == EasyLink_Status_Success)
-        {
-            /* Toggle LED1, clear LED2 to indicate Echo RX */
-            PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
-            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-            //Remember to cast RSSI value from unsigned integer to signed integer.
-            Display_printf(display, 0, 0, "Data received from CubeSat: %x -> %ddBm.\n", femtoAddr,
-                           (int8_t)rxPacket.payload[0]);
-        }
-        else if (result == EasyLink_Status_Rx_Timeout)
-        {
-            /* Set LED2 and clear LED1 to indicate Rx Timeout */
-            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-            Display_printf(display, 0, 0,
-                           "Device timed out before data received from CubeSat.\n");
-        }
-        else
-        {
-            /* Set both LED1 and LED2 to indicate error */
-            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-            Display_printf(display, 0, 0,
-                           "RX error.\n");
+            //No need to check the packet since this is a data transmission.
+            if (result == EasyLink_Status_Success)
+            {
+                /* Toggle LED1, clear LED2 to indicate Echo RX */
+                PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
+                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+                //Remember to cast RSSI value from unsigned integer to signed integer.
+                Display_printf(display, 0, 0, "Data received from CubeSat: %x -> %ddBm.\n", femtoAddr,
+                               (int8_t)rxPacket.payload[0]);
+            }
+            else if (result == EasyLink_Status_Rx_Timeout)
+            {
+                /* Set LED2 and clear LED1 to indicate Rx Timeout */
+                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+                Display_printf(display, 0, 0,
+                               "Device timed out before data received from CubeSat.\n");
+            }
+            else
+            {
+                /* Set both LED1 and LED2 to indicate error */
+                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+                Display_printf(display, 0, 0,
+                               "RX error.\n");
+            }
         }
 
 #endif //RFEASYLINKECHO_ASYNC
