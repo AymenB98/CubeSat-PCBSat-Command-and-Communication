@@ -341,7 +341,7 @@ void *mainThread(void *arg0)
             //Perform command sent by CubeSat.
             //Any futur commands added should be placed here.
             Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[1]);
-            dummyCommand(rxPacket.payload[1]);
+//            dummyCommand(rxPacket.payload[1]);
 #endif //RFEASYLINKECHO_ASYNC
         }
     }
