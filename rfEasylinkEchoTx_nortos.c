@@ -411,7 +411,7 @@ void *mainThread(void *arg0)
         {
             //Restart RX mode and wait for data from CubeSat.
             rxPacket.absTime = 0;
-            rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
+            rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT * 2);
             result = EasyLink_receive(&rxPacket);
             uint8_t femtoAddr = FEMTO_ADDRESS;
 
