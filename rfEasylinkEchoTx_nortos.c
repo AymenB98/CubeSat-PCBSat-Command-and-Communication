@@ -378,7 +378,7 @@ void *mainThread(void *arg0)
         /* Check Received packet against what was sent, it should be identical
          * to the transmitted packet
          */
-        if (result == EasyLink_Status_Success &&
+        if(result == EasyLink_Status_Success &&
                 isPacketCorrect(&rxPacket, &txPacket))
         {
             /* Toggle LED1, clear LED2 to indicate Echo RX */
@@ -387,7 +387,7 @@ void *mainThread(void *arg0)
             Display_printf(display, 0, 0, "Ack received from CubeSat.\n");
             ackFlag = true;
         }
-        else if (result == EasyLink_Status_Rx_Timeout)
+        else if(result == EasyLink_Status_Rx_Timeout)
         {
             /* Set LED2 and clear LED1 to indicate Rx Timeout */
             PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
@@ -406,7 +406,8 @@ void *mainThread(void *arg0)
             ackFlag = false;
         }
 
-        if(ackFlag)
+        //Stay in RX mode until data is received from CubeSat.
+        while(ackFlag)
         {
             //Restart RX mode and wait for data from CubeSat.
             rxPacket.absTime = 0;
@@ -423,14 +424,18 @@ void *mainThread(void *arg0)
                 //Remember to cast RSSI value from unsigned integer to signed integer.
                 Display_printf(display, 0, 0, "Data received from CubeSat: %x -> %ddBm.\n", femtoAddr,
                                (int8_t)rxPacket.payload[0]);
+                //Exit loop now that data has been received from CubeSat.
+                ackFlag = false;
             }
             else if (result == EasyLink_Status_Rx_Timeout)
             {
-                /* Set LED2 and clear LED1 to indicate Rx Timeout */
+                /* Set LED2 and clear LED1 to indicate RX Timeout */
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
                 Display_printf(display, 0, 0,
                                "Device timed out before data received from CubeSat.\n");
+                //Stay in loop until data is received from CubeSat.
+                ackFlag = true;
             }
             else
             {
@@ -439,6 +444,8 @@ void *mainThread(void *arg0)
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
                 Display_printf(display, 0, 0,
                                "RX error.\n");
+                //Stay in loop until data has been received from CubeSat.
+                ackFlag = true;
             }
         }
 
