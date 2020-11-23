@@ -407,7 +407,11 @@ void *mainThread(void *arg0)
         }
 
         //Stay in RX mode until data is received from CubeSat.
-        while(ackFlag)
+        /* Exit loop after a five attempts to restart RF link w/ CubeSat.
+        If this is not performed, there is a chance that the ground station and
+        Cubesat get stuck waiting for each other to send data.*/
+        uint8_t count = 0;
+        while(ackFlag && (count < 5))
         {
             //Restart RX mode and wait for data from CubeSat.
             rxPacket.absTime = 0;
@@ -447,6 +451,7 @@ void *mainThread(void *arg0)
                 //Stay in loop until data has been received from CubeSat.
                 ackFlag = true;
             }
+            count++;
         }
 
 #endif //RFEASYLINKECHO_ASYNC
