@@ -292,7 +292,7 @@ void *mainThread(void *arg0)
         {
             // Problem getting absolute time
         }
-        txPacket.absTime = absTime + EasyLink_ms_To_RadioTime(1000);
+        txPacket.absTime = absTime + EasyLink_ms_To_RadioTime(100);
 
 #ifdef RFEASYLINKECHO_ASYNC
         /* Set Echo flag to false, TX Cb should set it to true */

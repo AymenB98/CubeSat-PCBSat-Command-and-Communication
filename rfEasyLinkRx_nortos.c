@@ -371,7 +371,7 @@ void *mainThread(void *arg0)
         };
 #else
         rxPacket.absTime = 0;
-        rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
+        rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT * 3);
         EasyLink_Status result = EasyLink_receive(&rxPacket);
 
         if (result == EasyLink_Status_Success)
