@@ -83,7 +83,7 @@
 #define WRITEENABLE 1
 
 static void driverSetup();
-static void sdSetup(int8_t rssi);
+static void sdSetup(int8_t rssi, uint8_t errorCode);
 static void sdWrite(SD_Handle sdHandle, int_fast8_t result);
 
 /* Driver handles */
@@ -147,11 +147,13 @@ static void driverSetup()
 /**
  *  @brief  Function to initialise the (micro)SD card driver.
  *
- *  @param  rssi    RSSI value of RF link.
- *  @remark This function also setups up the display driver.
+ *  @param  rssi        RSSI value of RF link.
+ *  @param  errorCode   Error code of operation.
+ *
+ *  @return none
  *
  */
-static void sdSetup(int8_t rssi)
+static void sdSetup(int8_t rssi, uint8_t errorCode)
 {
     int_fast8_t result;
     SD_init();
@@ -161,8 +163,9 @@ static void sdSetup(int8_t rssi)
     /* Initialise the array to write to the SD card */
     int i;
     sdPacket[0] = rssi;
+    sdPacket[1] = errorCode;
     //Fill the rest of the array with the ground address.
-    for (i = 1; i < BUFFSIZE; i++)
+    for (i = 2; i < BUFFSIZE; i++)
     {
         sdPacket[i] = GROUND_ADDRESS;
     }
@@ -492,6 +495,7 @@ void *mainThread(void *arg0)
             /* Switch to Receiver, set a timeout interval of 500ms */
             rxPacket.absTime = 0;
             rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
+            uint8_t error;
             result = EasyLink_receive(&rxPacket);
 
             /* Check Received packet against what was sent, it should be identical
@@ -500,13 +504,15 @@ void *mainThread(void *arg0)
             if (result == EasyLink_Status_Success &&
                     isPacketCorrect(&rxPacket, &txPacket))
             {
+                //Successful RX.
+                error = 0;
                 /* Toggle LED1, clear LED2 to indicate Echo RX */
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
                 Display_printf(display, 0, 0, "Ack received from femtosat.\n");
                 Display_printf(display, 0, 0, "%x RSSI: %ddBm\n", txPacket.dstAddr[0], rxPacket.rssi);
                 //Log successful exchange in microSD card.
-                sdSetup(rxPacket.rssi);
+                sdSetup(rxPacket.rssi, error);
             }
             else if (result == EasyLink_Status_Rx_Timeout)
             {
@@ -514,6 +520,10 @@ void *mainThread(void *arg0)
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
                 Display_printf(display, 0, 0, "Device timed out before ack received from femtosat.\n");
+                //Log timeout error in microSD card.
+                error = 1;
+                //There will be no RSSI since RX not successful, pass default value to function.
+                sdSetup(0, error);
             }
             else
             {
@@ -521,11 +531,17 @@ void *mainThread(void *arg0)
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
                 Display_printf(display, 0, 0, "Error.\n");
+                //Log error in microSD card
+                error = 2;
+                sdSetup(0, error);
             }
 
             //Now that ack has been sent, relay data to ground station.
             txPacket.dstAddr[0] = GROUND_ADDRESS;
+            //Send data stored in first byte of sdPacket.
             txPacket.payload[0] = (uint8_t)sdPacket[0];
+            //Send status stored in second byte of sdPacket.
+            txPacket.payload[1] = sdPacket[1];
 
             result = EasyLink_transmit(&txPacket);
             if (result == EasyLink_Status_Success)

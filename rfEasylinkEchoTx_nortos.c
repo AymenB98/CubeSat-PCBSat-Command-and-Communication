@@ -425,9 +425,26 @@ void *mainThread(void *arg0)
                 /* Toggle LED1, clear LED2 to indicate Echo RX */
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-                //Remember to cast RSSI value from unsigned integer to signed integer.
-                Display_printf(display, 0, 0, "Data received from CubeSat: %x -> %ddBm.\n", femtoAddr,
-                               (int8_t)rxPacket.payload[0]);
+                Display_printf(display, 0, 0, "0x%x femtosat operation status: ", femtoAddr);
+                //Display correct message about femtosat operation.
+                switch(rxPacket.payload[1])
+                {
+                case 0:
+                    Display_printf(display, 0, 0, "successful.\n");
+                    //Remember to cast RSSI value from unsigned integer to signed integer.
+                    Display_printf(display, 0, 0, "Data received from CubeSat: %x -> %ddBm.\n", femtoAddr,
+                                   (int8_t)rxPacket.payload[0]);
+                    break;
+                case 1:
+                    Display_printf(display, 0, 0, "timeout error.\n");
+                    break;
+                case 2:
+                    Display_printf(display, 0, 0, "error.\n");
+                    break;
+                default:
+                    break;
+                }
+
                 //Exit loop now that data has been received from CubeSat.
                 ackFlag = false;
             }
