@@ -349,6 +349,25 @@ void *mainThread(void *arg0)
                 Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i+2]);
                 dummyCommand(rxPacket.payload[i+2]);
             }
+
+            //Send confirmation to CubeSat that commands were executed.
+            result = EasyLink_transmit(&txPacket);
+            if (result == EasyLink_Status_Success)
+            {
+                /* Toggle LED2 to indicate Echo TX, clear LED1 */
+                PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+                Display_printf(display, 0, 0, "Confirmation sent to CubeSat.\n");
+            }
+            else
+            {
+                /* Set LED1 and clear LED2 to indicate error */
+                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+                Display_printf(display, 0, 0, "Femtosat error.\n");
+            }
+
+
 #endif //RFEASYLINKECHO_ASYNC
         }
     }

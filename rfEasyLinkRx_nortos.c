@@ -536,12 +536,55 @@ void *mainThread(void *arg0)
                 sdSetup(0, error);
             }
 
-            //Now that ack has been sent, relay data to ground station.
+            uint8_t commandStat = 0;
+            uint8_t count = 0;
+            while(commandStat && (count < 10))
+            {
+                rxPacket.absTime = 0;
+                rxPacket.rxTimeout = RX_TIMEOUT * 2;
+                //Variable signalling command status.
+                result = EasyLink_receive(&rxPacket);
+
+                /* Check Received packet against what was sent, it should be identical
+                 * to the transmitted packet
+                 */
+                if (result == EasyLink_Status_Success)
+                {
+                    commandStat = 0;
+                    /* Toggle LED1, clear LED2 to indicate Echo RX */
+                    PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
+                    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+                    Display_printf(display, 0, 0, "Command(s) performed by femtosat.\n");
+                }
+                else if (result == EasyLink_Status_Rx_Timeout)
+                {
+                    commandStat = 1;
+                    /* Set LED2 and clear LED1 to indicate Rx Timeout */
+                    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+                    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+                    Display_printf(display, 0, 0, "Device timed out before confirmation received from femtosat.\n");
+                }
+                else
+                {
+                    commandStat = 1;
+                    /* Set both LED1 and LED2 to indicate error */
+                    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+                    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+                    Display_printf(display, 0, 0, "Error.\n");
+                }
+                count++;
+            }
+            //Store command status in microSD card.
+            sdPacket[2] = commandStat;
+
+            //Now that ack has been received, relay data to ground station.
             txPacket.dstAddr[0] = GROUND_ADDRESS;
-            //Send data stored in first byte of sdPacket.
+            //Send RSSI data stored in first byte of sdPacket.
             txPacket.payload[0] = (uint8_t)sdPacket[0];
             //Send status stored in second byte of sdPacket.
             txPacket.payload[1] = sdPacket[1];
+            //Send confirmation of command completion.
+            txPacket.payload[2] = sdPacket[2];
 
             result = EasyLink_transmit(&txPacket);
             if (result == EasyLink_Status_Success)
