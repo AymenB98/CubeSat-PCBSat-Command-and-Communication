@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <unistd.h>
 
 /* TI Drivers */
 #include <ti/drivers/rf/RF.h>
@@ -165,13 +166,16 @@ static void dummyCommand(uint8_t commandID)
     switch(commandID)
     {
     case 0x1:
+        //RSSI command -> do nothing.
+        break;
+    case 0x2:
         //Set green LED high for 2 seconds.
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
         sleep(2);
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
         break;
-    case 0x2:
-        //Do another command.
+    case 0x3:
+        //Insert another command here.
         break;
     default:
         break;
@@ -338,10 +342,13 @@ void *mainThread(void *arg0)
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
                 Display_printf(display, 0, 0, "Femtosat error.\n");
             }
-            //Perform command sent by CubeSat.
-            //Any futur commands added should be placed here.
-            Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[1]);
-//            dummyCommand(rxPacket.payload[1]);
+            //Perform command(s) sent by CubeSat.
+            uint8_t i;
+            for(i = 0; i < rxPacket.payload[1]; i++)
+            {
+                Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i+2]);
+                dummyCommand(rxPacket.payload[i+2]);
+            }
 #endif //RFEASYLINKECHO_ASYNC
         }
     }
