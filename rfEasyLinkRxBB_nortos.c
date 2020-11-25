@@ -62,12 +62,12 @@
 
 #define RFEASYLINKECHO_PAYLOAD_LENGTH     30
 
-#define CUBESAT_ADDRESS  0xCC;
+#define CUBESAT_ADDRESS  0xCC
 
 #define BUFF_SIZE   1024
 
 static void displaySetup();
-static void dummyCommand(uint8_t commandID);
+static void dummyCommand(uint8_t commandID, uint8_t sleepTime);
 
 /* Pin driver handle */
 static PIN_Handle pinHandle;
@@ -161,7 +161,7 @@ void echoRxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
  *  @return none
  *
  */
-static void dummyCommand(uint8_t commandID)
+static void dummyCommand(uint8_t commandID, uint8_t sleepTime)
 {
     switch(commandID)
     {
@@ -180,6 +180,7 @@ static void dummyCommand(uint8_t commandID)
     default:
         break;
     }
+    sleep(sleepTime);
 }
 
 void *mainThread(void *arg0)
@@ -344,28 +345,37 @@ void *mainThread(void *arg0)
             }
             //Perform command(s) sent by CubeSat.
             uint8_t i;
-            for(i = 0; i < rxPacket.payload[1]; i++)
+            uint8_t commands = rxPacket.payload[1];
+            /* Set up for-loop so that it iterates through the array
+             * the correct number of times.
+             */
+            uint8_t loopSize = (commands * 2) + 2;
+            for(i = 2; i < loopSize; i++)
             {
-                Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i+2]);
-                dummyCommand(rxPacket.payload[i+2]);
+                //Command IDs are only found on every other element (starting from element 2).
+                if(!(i % 2))
+                {
+                    Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i]);
+                    dummyCommand(rxPacket.payload[i], rxPacket.payload[i+1]);
+                }
             }
 
-            //Send confirmation to CubeSat that commands were executed.
-            result = EasyLink_transmit(&txPacket);
-            if (result == EasyLink_Status_Success)
-            {
-                /* Toggle LED2 to indicate Echo TX, clear LED1 */
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-                Display_printf(display, 0, 0, "Confirmation sent to CubeSat.\n");
-            }
-            else
-            {
-                /* Set LED1 and clear LED2 to indicate error */
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-                Display_printf(display, 0, 0, "Femtosat error.\n");
-            }
+//            //Send confirmation to CubeSat that commands were executed.
+//            result = EasyLink_transmit(&txPacket);
+//            if (result == EasyLink_Status_Success)
+//            {
+//                /* Toggle LED2 to indicate Echo TX, clear LED1 */
+//                PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+//                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+//                Display_printf(display, 0, 0, "Confirmation sent to CubeSat.\n");
+//            }
+//            else
+//            {
+//                /* Set LED1 and clear LED2 to indicate error */
+//                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+//                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+//                Display_printf(display, 0, 0, "Femtosat error.\n");
+//            }
 
 
 #endif //RFEASYLINKECHO_ASYNC

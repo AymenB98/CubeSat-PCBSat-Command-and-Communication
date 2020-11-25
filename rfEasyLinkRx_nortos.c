@@ -62,7 +62,7 @@
 
 #define RFEASYLINKECHO_PAYLOAD_LENGTH   30
 
-#define GROUND_ADDRESS    0xFF;
+#define GROUND_ADDRESS    0xFF
 
 //Set RX to timeout after 1s(1000ms)
 #define RX_TIMEOUT  500
@@ -541,7 +541,7 @@ void *mainThread(void *arg0)
             while(commandStat && (count < 10))
             {
                 rxPacket.absTime = 0;
-                rxPacket.rxTimeout = RX_TIMEOUT * 2;
+                rxPacket.rxTimeout = RX_TIMEOUT + 2000;
                 //Variable signalling command status.
                 result = EasyLink_receive(&rxPacket);
 
@@ -580,11 +580,11 @@ void *mainThread(void *arg0)
             //Now that ack has been received, relay data to ground station.
             txPacket.dstAddr[0] = GROUND_ADDRESS;
             //Send RSSI data stored in first byte of sdPacket.
-            txPacket.payload[0] = (uint8_t)sdPacket[0];
+            txPacket.payload[0] = (uint8_t)cpyBuff[0];
             //Send status stored in second byte of sdPacket.
-            txPacket.payload[1] = sdPacket[1];
+            txPacket.payload[1] = cpyBuff[1];
             //Send confirmation of command completion.
-            txPacket.payload[2] = sdPacket[2];
+            txPacket.payload[2] = cpyBuff[2];
 
             result = EasyLink_transmit(&txPacket);
             if (result == EasyLink_Status_Success)

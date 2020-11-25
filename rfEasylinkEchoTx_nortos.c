@@ -62,11 +62,13 @@
 #define RFEASYLINKECHO_PAYLOAD_LENGTH   30
 #define RX_TIMEOUT   500
 
-#define CUBESAT_ADDRESS     0xCC;
-#define FEMTO_ADDRESS      0xBB;
-#define NUMBER_OF_COMMANDS      2;
-#define COMMAND_ONE     0x1;
-#define COMMAND_TWO     0x2;
+#define CUBESAT_ADDRESS     0xCC
+#define FEMTO_ADDRESS      0xBB
+
+#define NUMBER_OF_COMMANDS      2
+#define COMMAND_ONE     0x1
+#define COMMAND_TWO     0x2
+#define SLEEP_TIME      2
 
 static void displaySetup();
 
@@ -277,9 +279,11 @@ void *mainThread(void *arg0)
         txPacket.payload[0] = FEMTO_ADDRESS;
         txPacket.payload[1] = NUMBER_OF_COMMANDS;
         txPacket.payload[2] = COMMAND_ONE;
-        txPacket.payload[3] = COMMAND_TWO;
+        txPacket.payload[3] = SLEEP_TIME;
+        txPacket.payload[4] = COMMAND_TWO;
+        txPacket.payload[5] = SLEEP_TIME;
         uint8_t i;
-        for (i = (txPacket.payload[1] + 2); i < RFEASYLINKECHO_PAYLOAD_LENGTH; i++)
+        for (i = 6; i < RFEASYLINKECHO_PAYLOAD_LENGTH; i++)
         {
             txPacket.payload[i] = rand();
         }
