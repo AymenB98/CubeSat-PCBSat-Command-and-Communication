@@ -65,10 +65,10 @@
 #define CUBESAT_ADDRESS     0xCC
 #define FEMTO_ADDRESS      0xBB
 
-#define NUMBER_OF_COMMANDS      2
+#define NUMBER_OF_COMMANDS      1
 #define COMMAND_ONE     0x1
 #define COMMAND_TWO     0x2
-#define SLEEP_TIME      2
+#define SLEEP_TIME      0
 
 static void displaySetup();
 
