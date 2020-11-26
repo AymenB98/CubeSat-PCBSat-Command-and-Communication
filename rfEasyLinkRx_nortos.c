@@ -83,8 +83,8 @@
 #define WRITEENABLE 1
 
 static void driverSetup();
-static void sdSetup(int8_t rssi, uint8_t errorCode);
-static void sdWrite(SD_Handle sdHandle, int_fast8_t result);
+static bool sdSetup(int8_t rssi, uint8_t errorCode);
+static bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure);
 
 /* Driver handles */
 static PIN_Handle pinHandle;
@@ -150,12 +150,14 @@ static void driverSetup()
  *  @param  rssi        RSSI value of RF link.
  *  @param  errorCode   Error code of operation.
  *
- *  @return none
+ *  @return sdOpFlag    Flag raised when microSD op fails.
  *
  */
-static void sdSetup(int8_t rssi, uint8_t errorCode)
+static bool sdSetup(int8_t rssi, uint8_t errorCode)
 {
     int_fast8_t result;
+    //Flag raised in the even of an SD operation failure.
+    bool sdOpFlag = 0;
     SD_init();
 
     Display_printf(display, 0, 0, "Starting the SD setup...\n");
@@ -175,16 +177,22 @@ static void sdSetup(int8_t rssi, uint8_t errorCode)
     if (sdHandle == NULL)
     {
         Display_printf(display, 0, 0, "Error starting the SD card.\n");
-        while (1);
+        //Raise flag when error occurs.
+        sdOpFlag = 1;
+//        while (1);
     }
 
     result = SD_initialize(sdHandle);
     if (result != SD_STATUS_SUCCESS)
     {
         Display_printf(display, 0, 0, "Error initialising the SD card.\n");
-        while (1);
+        //Raise flag when error occurs.
+        sdOpFlag = 1;
+//        while (1);
     }
-    sdWrite(sdHandle, result);
+    //Perform write operation and track it's success.
+    sdOpFlag = sdWrite(sdHandle, result, sdOpFlag);
+    return sdOpFlag;
 }
 
 
@@ -194,10 +202,10 @@ static void sdSetup(int8_t rssi, uint8_t errorCode)
  *  @param sdHandle     SD driver handle
  *  @param result       Result of SD driver initialisation
  *
- *  @return none
+ *  @return sdFlag      Flag raised in the event of microSD failure.
  *
  */
-static void sdWrite(SD_Handle sdHandle, int_fast8_t result)
+static bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure)
 {
     uint_fast32_t sectorSize;
     uint_fast32_t sectors;
@@ -214,7 +222,8 @@ static void sdWrite(SD_Handle sdHandle, int_fast8_t result)
     if (result != SD_STATUS_SUCCESS)
     {
         Display_printf(display, 0, 0, "Error writing to the SD card\n");
-        while (1);
+        sdFailure = 1;
+//        while (1);
     }
 #endif
 
@@ -223,7 +232,8 @@ static void sdWrite(SD_Handle sdHandle, int_fast8_t result)
     if (result != SD_STATUS_SUCCESS)
     {
         Display_printf(display, 0, 0, "Error reading from the SD card\n");
-        while (1);
+//        while (1);
+        sdFailure = 1;
     }
 
     /* Compare data read from the SD card with expected values */
@@ -232,6 +242,7 @@ static void sdWrite(SD_Handle sdHandle, int_fast8_t result)
     {
         if (cpyBuff[i] != sdPacket[i])
         {
+            sdFailure = 1;
             Display_printf(display, 0, 0,
                     "Data read from SD card differed from expected value\n");
             Display_printf(display, 0, 0,
@@ -252,6 +263,7 @@ static void sdWrite(SD_Handle sdHandle, int_fast8_t result)
     }
 
     SD_close(sdHandle);
+    return sdFailure;
 }
 
 
@@ -496,6 +508,7 @@ void *mainThread(void *arg0)
             rxPacket.absTime = 0;
             rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
             uint8_t error;
+            bool sdFlag;
             result = EasyLink_receive(&rxPacket);
 
             /* Check Received packet against what was sent, it should be identical
@@ -512,7 +525,7 @@ void *mainThread(void *arg0)
                 Display_printf(display, 0, 0, "Ack received from femtosat.\n");
                 Display_printf(display, 0, 0, "%x RSSI: %ddBm\n", txPacket.dstAddr[0], rxPacket.rssi);
                 //Log successful exchange in microSD card.
-                sdSetup(rxPacket.rssi, error);
+                sdFlag = sdSetup(rxPacket.rssi, error);
             }
             else if (result == EasyLink_Status_Rx_Timeout)
             {
@@ -523,7 +536,7 @@ void *mainThread(void *arg0)
                 //Log timeout error in microSD card.
                 error = 1;
                 //There will be no RSSI since RX not successful, pass default value to function.
-                sdSetup(0, error);
+                sdFlag = sdSetup(0, error);
             }
             else
             {
@@ -533,58 +546,72 @@ void *mainThread(void *arg0)
                 Display_printf(display, 0, 0, "Error.\n");
                 //Log error in microSD card
                 error = 2;
-                sdSetup(0, error);
+                sdFlag = sdSetup(0, error);
             }
 
-            uint8_t commandStat = 0;
-            uint8_t count = 0;
-            while(commandStat && (count < 10))
-            {
-                rxPacket.absTime = 0;
-                rxPacket.rxTimeout = RX_TIMEOUT + 2000;
-                //Variable signalling command status.
-                result = EasyLink_receive(&rxPacket);
-
-                /* Check Received packet against what was sent, it should be identical
-                 * to the transmitted packet
-                 */
-                if (result == EasyLink_Status_Success)
-                {
-                    commandStat = 0;
-                    /* Toggle LED1, clear LED2 to indicate Echo RX */
-                    PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
-                    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-                    Display_printf(display, 0, 0, "Command(s) performed by femtosat.\n");
-                }
-                else if (result == EasyLink_Status_Rx_Timeout)
-                {
-                    commandStat = 1;
-                    /* Set LED2 and clear LED1 to indicate Rx Timeout */
-                    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-                    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-                    Display_printf(display, 0, 0, "Device timed out before confirmation received from femtosat.\n");
-                }
-                else
-                {
-                    commandStat = 1;
-                    /* Set both LED1 and LED2 to indicate error */
-                    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-                    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-                    Display_printf(display, 0, 0, "Error.\n");
-                }
-                count++;
-            }
-            //Store command status in microSD card.
-            sdPacket[2] = commandStat;
+//            uint8_t commandStat = 0;
+//            uint8_t count = 0;
+//            while(commandStat && (count < 10))
+//            {
+//                rxPacket.absTime = 0;
+//                rxPacket.rxTimeout = RX_TIMEOUT + 2000;
+//                //Variable signalling command status.
+//                result = EasyLink_receive(&rxPacket);
+//
+//                /* Check Received packet against what was sent, it should be identical
+//                 * to the transmitted packet
+//                 */
+//                if (result == EasyLink_Status_Success)
+//                {
+//                    commandStat = 0;
+//                    /* Toggle LED1, clear LED2 to indicate Echo RX */
+//                    PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
+//                    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+//                    Display_printf(display, 0, 0, "Command(s) performed by femtosat.\n");
+//                }
+//                else if (result == EasyLink_Status_Rx_Timeout)
+//                {
+//                    commandStat = 1;
+//                    /* Set LED2 and clear LED1 to indicate Rx Timeout */
+//                    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+//                    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+//                    Display_printf(display, 0, 0, "Device timed out before confirmation received from femtosat.\n");
+//                }
+//                else
+//                {
+//                    commandStat = 1;
+//                    /* Set both LED1 and LED2 to indicate error */
+//                    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+//                    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+//                    Display_printf(display, 0, 0, "Error.\n");
+//                }
+//                count++;
+//            }
+//            //Store command status in microSD card.
+//            sdPacket[2] = commandStat;
 
             //Now that ack has been received, relay data to ground station.
             txPacket.dstAddr[0] = GROUND_ADDRESS;
-            //Send RSSI data stored in first byte of sdPacket.
-            txPacket.payload[0] = (uint8_t)cpyBuff[0];
-            //Send status stored in second byte of sdPacket.
-            txPacket.payload[1] = cpyBuff[1];
-            //Send confirmation of command completion.
-            txPacket.payload[2] = cpyBuff[2];
+            //If sdFlag is not raised, use value read from microSD card.
+            if(!sdFlag)
+            {
+                //Send RSSI data stored in first byte of sdPacket.
+                txPacket.payload[0] = (uint8_t)cpyBuff[0];
+                //Send status stored in second byte of sdPacket.
+                txPacket.payload[1] = cpyBuff[1];
+                //Send confirmation of command completion.
+                txPacket.payload[2] = cpyBuff[2];
+            }
+            //If flag is raised, use locally stored values.
+            else
+            {
+                //RSSI value.
+                txPacket.payload[0] = (uint8_t)rxPacket.rssi;
+                //Status of RSSI operation.
+                txPacket.payload[1] = error;
+                //Set as '1' temporarily.
+                txPacket.payload[2] = 1;
+            }
 
             result = EasyLink_transmit(&txPacket);
             if (result == EasyLink_Status_Success)
