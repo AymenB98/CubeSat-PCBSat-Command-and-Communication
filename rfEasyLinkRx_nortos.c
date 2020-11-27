@@ -57,9 +57,6 @@
 /* EasyLink API Header files */
 #include "easylink/EasyLink.h"
 
-/* Undefine to not use async mode */
-//#define RFEASYLINKECHO_ASYNC
-
 #define RFEASYLINKECHO_PAYLOAD_LENGTH   30
 
 #define GROUND_ADDRESS    0xFF
@@ -496,8 +493,6 @@ void *mainThread(void *arg0)
                 txPacket.payload[0] = (uint8_t)cpyBuff[0];
                 // Send status stored in second byte of sdPacket
                 txPacket.payload[1] = cpyBuff[1];
-                // Send confirmation of command completion
-                txPacket.payload[2] = cpyBuff[2];
             }
             //If flag is raised, use locally stored values
             else
@@ -506,8 +501,6 @@ void *mainThread(void *arg0)
                 txPacket.payload[0] = (uint8_t)rxPacket.rssi;
                 //Status of RSSI operation
                 txPacket.payload[1] = error;
-                //Set as '1' temporarily
-                txPacket.payload[2] = 1;
             }
 
 

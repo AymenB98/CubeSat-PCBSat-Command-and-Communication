@@ -56,9 +56,6 @@
 /* EasyLink API Header files */
 #include "easylink/EasyLink.h"
 
-/* Undefine to not use async mode */
-//#define RFEASYLINKECHO_ASYNC
-
 #define RFEASYLINKECHO_PAYLOAD_LENGTH   30
 #define RX_TIMEOUT   500
 
@@ -70,6 +67,7 @@
 #define COMMAND_TWO     0x2
 #define SLEEP_TIME      0
 
+//Function prototypes
 static void displaySetup();
 
 /* Pin driver handle */
@@ -107,22 +105,6 @@ static void displaySetup()
 }
 
 
-#ifdef RFEASYLINKECHO_ASYNC
-/* GPTimer handle and timeout value */
-GPTimerCC26XX_Handle hTimer;
-GPTimerCC26XX_Value rxTimeoutVal;
-
-/* GP Timer Callback */
-void rxTimeoutCb(GPTimerCC26XX_Handle handle,
-                 GPTimerCC26XX_IntMask interruptMask);
-
-static volatile bool rxDoneFlag;
-static volatile bool rxTimeoutFlag;
-#endif
-
-static volatile bool bEchoDoneFlag;
-
-EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
 
 bool isPacketCorrect(EasyLink_RxPacket *rxp, EasyLink_TxPacket *txp)
 {
@@ -140,73 +122,12 @@ bool isPacketCorrect(EasyLink_RxPacket *rxp, EasyLink_TxPacket *txp)
     return(status);
 }
 
-#ifdef RFEASYLINKECHO_ASYNC
-void echoTxDoneCb(EasyLink_Status status)
-{
-    if (status == EasyLink_Status_Success)
-    {
-        /* Toggle LED1 to indicate TX */
-        PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
-        /* Turn LED2 off, in case there was a prior error */
-        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-    }
-    else
-    {
-        /* Set both LED1 and LED2 to indicate error */
-        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-    }
-
-    bEchoDoneFlag = true;
-}
-
-void echoRxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
-{
-    uint32_t currTimerVal;
-
-    if ((status == EasyLink_Status_Success) &&
-            (isPacketCorrect(rxPacket, &txPacket)))
-    {
-        /* Toggle LED1, clear LED2 to indicate Echo RX */
-        PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
-        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-
-        /*
-         * Stop the Receiver timeout timer, find the current free-running
-         * counter value and add it to the existing interval load value
-         */
-        GPTimerCC26XX_stop(hTimer);
-        currTimerVal = GPTimerCC26XX_getValue(hTimer);
-        GPTimerCC26XX_setLoadValue(hTimer, rxTimeoutVal + currTimerVal);
-    }
-    else if (status == EasyLink_Status_Aborted)
-    {
-        /* Set LED2 and clear LED1 to indicate Abort */
-        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-    }
-    else
-    {
-        /* Set both LED1 and LED2 to indicate error */
-        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-
-        /*
-         * Stop the Receiver timeout timer, find the current free-running
-         * counter value and add it to the existing interval load value
-         */
-        GPTimerCC26XX_stop(hTimer);
-        currTimerVal = GPTimerCC26XX_getValue(hTimer);
-        GPTimerCC26XX_setLoadValue(hTimer, rxTimeoutVal + currTimerVal);
-    }
-
-    bEchoDoneFlag = true;
-}
-#endif //RFEASYLINKECHO_ASYNC
-
 void *mainThread(void *arg0)
 {
     uint32_t absTime;
+    static volatile bool bEchoDoneFlag;
+    EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
+    EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
 
     /* Open LED pins */
     pinHandle = PIN_open(&pinState, pinTable);
@@ -221,36 +142,6 @@ void *mainThread(void *arg0)
 
     displaySetup();
     Display_printf(display, 0, 0, "Starting ground station...\n");
-
-#ifdef RFEASYLINKECHO_ASYNC
-    /* Reset the timeout flag */
-    rxTimeoutFlag = false;
-    /* Set the echo flag to its default state */
-    bEchoDoneFlag = false;
-
-    /* Open the GPTimer driver */
-    GPTimerCC26XX_Params params;
-    GPTimerCC26XX_Params_init(&params);
-    params.width          = GPT_CONFIG_32BIT;
-    params.mode           = GPT_MODE_ONESHOT;
-    params.direction      = GPTimerCC26XX_DIRECTION_UP;
-    params.debugStallMode = GPTimerCC26XX_DEBUG_STALL_OFF;
-    hTimer = GPTimerCC26XX_open(Board_GPTIMER0A, &params);
-    if(hTimer == NULL)
-    {
-        while(1);
-    }
-
-    /* Set Timeout value to 500ms */
-    rxTimeoutVal = (SysCtrlClockGet()*5UL)/10UL - 1UL;
-    GPTimerCC26XX_setLoadValue(hTimer, rxTimeoutVal);
-
-
-    /* Register the GPTimer interrupt */
-    GPTimerCC26XX_registerInterrupt(hTimer, rxTimeoutCb, GPT_INT_TIMEOUT);
-#else
-    EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
-#endif //RFEASYLINKECHO_ASYNC
 
     // Initialize the EasyLink parameters to their default values
     EasyLink_Params easyLink_params;
@@ -302,61 +193,6 @@ void *mainThread(void *arg0)
             // Problem getting absolute time
         }
         txPacket.absTime = absTime + EasyLink_ms_To_RadioTime(100);
-
-#ifdef RFEASYLINKECHO_ASYNC
-        /* Set Echo flag to false, TX Cb should set it to true */
-        bEchoDoneFlag = false;
-        EasyLink_transmitAsync(&txPacket, echoTxDoneCb);
-
-        /* Wait for Tx to complete. A Successful TX will cause the echoTxDoneCb
-         * to be called and the echoDoneSem to be released, so we must
-         * consume the echoDoneSem
-         */
-        while(bEchoDoneFlag == false){};
-
-        /* Switch to Receiver */
-        bEchoDoneFlag = false;
-        EasyLink_receiveAsync(echoRxDoneCb, 0);
-
-        /*
-         * Start the Receiver timeout timer (500ms) before
-         * EasyLink_receiveAsync enables the power policy
-         */
-        GPTimerCC26XX_start(hTimer);
-
-        while(bEchoDoneFlag == false)
-        {
-            bool previousHwiState = IntMasterDisable();
-            /*
-             * Tricky IntMasterDisable():
-             * true  : Interrupts were already disabled when the function was
-             *         called.
-             * false : Interrupts were enabled and are now disabled.
-             */
-            IntMasterEnable();
-            Power_idleFunc();
-            IntMasterDisable();
-
-            if(!previousHwiState)
-            {
-                IntMasterEnable();
-            }
-
-            /* Break if timeout flag is set */
-            if(rxTimeoutFlag == true)
-            {
-                /* Reset the timeout flag */
-                rxTimeoutFlag = false;
-                /* RX timed out, abort */
-                if(EasyLink_abort() == EasyLink_Status_Success)
-                {
-                    /* Wait for the abort */
-                    while(bEchoDoneFlag == false){};
-                }
-                break;
-            }
-        }
-#else
         EasyLink_Status result = EasyLink_transmit(&txPacket);
 
         if (result == EasyLink_Status_Success)
@@ -434,7 +270,7 @@ void *mainThread(void *arg0)
                 /* Toggle LED1, clear LED2 to indicate Echo RX */
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-                Display_printf(display, 0, 0, "0x%x femtosat operation status: ", femtoAddr);
+                Display_printf(display, 0, 0, "0x%x femtosat reception status: ", femtoAddr);
                 //Display correct message about femtosat operation.
                 switch(rxPacket.payload[1])
                 {
@@ -479,23 +315,5 @@ void *mainThread(void *arg0)
             }
             count++;
         }
-
-#endif //RFEASYLINKECHO_ASYNC
     }
 }
-
-#ifdef RFEASYLINKECHO_ASYNC
-/* GP Timer Callback Function */
-void rxTimeoutCb(GPTimerCC26XX_Handle handle,
-                 GPTimerCC26XX_IntMask interruptMask)
-{
-    /* Set the Timeout Flag */
-    rxTimeoutFlag = true;
-
-    /*
-     * Timer is automatically stopped in one-shot mode and needs to be reset by
-     * loading the interval load value
-     */
-    GPTimerCC26XX_setLoadValue(hTimer, rxTimeoutVal);
-}
-#endif // RFEASYLINKECHO_ASYNC

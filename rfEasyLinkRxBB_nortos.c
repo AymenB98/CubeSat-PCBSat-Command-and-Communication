@@ -84,12 +84,6 @@ PIN_Config pinTable[] = {
     PIN_TERMINATE
 };
 
-static volatile bool bEchoDoneFlag;
-
-static bool bBlockTransmit = false;
-
-EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
-
 /**
  *  @brief  Setup display driver.
  *
@@ -108,51 +102,6 @@ static void displaySetup()
         while (1);
     }
 }
-
-
-#ifdef RFEASYLINKECHO_ASYNC
-void echoTxDoneCb(EasyLink_Status status)
-{
-    if (status == EasyLink_Status_Success)
-    {
-        /* Toggle LED2 to indicate Echo TX, clear LED1 */
-        PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
-        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-    }
-    else
-    {
-        /* Set LED1 and clear LED2 to indicate error */
-        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-    }
-
-    bEchoDoneFlag = true;
-}
-
-void echoRxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
-{
-    if (status == EasyLink_Status_Success)
-    {
-        /* Toggle LED2 to indicate RX, clear LED1 */
-        PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
-        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-        /* Copy contents of RX packet to TX packet */
-        memcpy(&txPacket.payload, rxPacket->payload, rxPacket->len);
-        /* Permit echo transmission */
-        bBlockTransmit = false;
-    }
-    else
-    {
-        /* Set LED1 and clear LED2 to indicate error */
-        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-        /* Block echo transmission */
-        bBlockTransmit = true;
-    }
-
-    bEchoDoneFlag = true;
-}
-#endif //RFEASYLINKECHO_ASYNC
 
 /**
  *  @brief  Perform dummyCommand
@@ -186,6 +135,11 @@ static void dummyCommand(uint8_t commandID, uint8_t sleepTime)
 void *mainThread(void *arg0)
 {
     uint32_t absTime;
+    static volatile bool bEchoDoneFlag;
+    static bool bBlockTransmit = false;
+    EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
+    EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
+
     /* Open LED pins */
     pinHandle = PIN_open(&pinState, pinTable);
     if (pinHandle == NULL)
@@ -199,10 +153,6 @@ void *mainThread(void *arg0)
 
     displaySetup();
     Display_printf(display, 0, 0, "Starting femtosat...\n");
-
-#ifndef RFEASYLINKECHO_ASYNC
-    EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
-#endif //RFEASYLINKECHO_ASYNC
 
     // Initialize the EasyLink parameters to their default values
     EasyLink_Params easyLink_params;
@@ -224,34 +174,8 @@ void *mainThread(void *arg0)
      * EasyLink_setFrequency(868000000);
      */
 
-    while(1) {
-#ifdef RFEASYLINKECHO_ASYNC
-        // Set the echo done flag to false, callback will
-        // set it to true
-        bEchoDoneFlag = false;
-
-        // Wait to receive a packet
-        EasyLink_receiveAsync(echoRxDoneCb, 0);
-
-        /* Wait indefinitely for Rx */
-        while(bEchoDoneFlag == false){
-            bool previousHwiState = IntMasterDisable();
-            /*
-             * Tricky IntMasterDisable():
-             * true  : Interrupts were already disabled when the function was
-             *         called.
-             * false : Interrupts were enabled and are now disabled.
-             */
-            IntMasterEnable();
-            Power_idleFunc();
-            IntMasterDisable();
-
-            if(!previousHwiState)
-            {
-                IntMasterEnable();
-            }
-        };
-#else
+    while(1)
+    {
         rxPacket.absTime = 0;
         EasyLink_Status result = EasyLink_receive(&rxPacket);
 
@@ -276,7 +200,6 @@ void *mainThread(void *arg0)
             bBlockTransmit = true;
 
         }
-#endif // RFEASYLINKECHO_ASYNC
 
         if(bBlockTransmit == false)
         {
@@ -298,35 +221,6 @@ void *mainThread(void *arg0)
             }
             txPacket.absTime = absTime + EasyLink_ms_To_RadioTime(100);
 
-#ifdef RFEASYLINKECHO_ASYNC
-            // Set the echo done flag to false, callback will
-            // set it to true
-            bEchoDoneFlag = false;
-            EasyLink_transmitAsync(&txPacket, echoTxDoneCb);
-
-            /* Wait for Tx to complete. A Successful TX will cause the echoTxDoneCb
-             * to be called and the bEchoDoneFlag to be set
-             */
-            while(bEchoDoneFlag == false){
-                bool previousHwiState = IntMasterDisable();
-                /*
-                 * Tricky IntMasterDisable():
-                 * true  : Interrupts were already disabled when the function was
-                 *         called.
-                 * false : Interrupts were enabled and are now disabled.
-                 */
-                IntMasterEnable();
-                Power_idleFunc();
-                IntMasterDisable();
-
-                if(!previousHwiState)
-                {
-                    IntMasterEnable();
-                }
-            };
-
-
-#else
             EasyLink_Status result = EasyLink_transmit(&txPacket);
 
             if (result == EasyLink_Status_Success)
@@ -335,6 +229,23 @@ void *mainThread(void *arg0)
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
                 PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
                 Display_printf(display, 0, 0, "Ack sent to CubeSat.\n");
+
+                //Perform command(s) sent by CubeSat.
+                uint8_t i;
+                uint8_t commands = rxPacket.payload[1];
+                /* Set up for-loop so that it iterates through the array
+                 * the correct number of times.
+                 */
+                uint8_t loopSize = (commands * 2) + 2;
+                for(i = 2; i < loopSize; i++)
+                {
+                    //Command IDs are only found on every other element (starting from element 2).
+                    if(!(i % 2))
+                    {
+                        Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i]);
+                        dummyCommand(rxPacket.payload[i], rxPacket.payload[i+1]);
+                    }
+                }
             }
             else
             {
@@ -343,42 +254,6 @@ void *mainThread(void *arg0)
                 PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
                 Display_printf(display, 0, 0, "Femtosat error.\n");
             }
-            //Perform command(s) sent by CubeSat.
-            uint8_t i;
-            uint8_t commands = rxPacket.payload[1];
-            /* Set up for-loop so that it iterates through the array
-             * the correct number of times.
-             */
-            uint8_t loopSize = (commands * 2) + 2;
-            for(i = 2; i < loopSize; i++)
-            {
-                //Command IDs are only found on every other element (starting from element 2).
-                if(!(i % 2))
-                {
-                    Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i]);
-                    dummyCommand(rxPacket.payload[i], rxPacket.payload[i+1]);
-                }
-            }
-
-//            //Send confirmation to CubeSat that commands were executed.
-//            result = EasyLink_transmit(&txPacket);
-//            if (result == EasyLink_Status_Success)
-//            {
-//                /* Toggle LED2 to indicate Echo TX, clear LED1 */
-//                PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
-//                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-//                Display_printf(display, 0, 0, "Confirmation sent to CubeSat.\n");
-//            }
-//            else
-//            {
-//                /* Set LED1 and clear LED2 to indicate error */
-//                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-//                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-//                Display_printf(display, 0, 0, "Femtosat error.\n");
-//            }
-
-
-#endif //RFEASYLINKECHO_ASYNC
         }
     }
 }
