@@ -56,6 +56,7 @@
 /* EasyLink API Header files */
 #include "easylink/EasyLink.h"
 
+#define RUN_STOP    0
 #define RFEASYLINKECHO_PAYLOAD_LENGTH   30
 #define RX_TIMEOUT   500
 
@@ -63,7 +64,7 @@
 #define FEMTO_ADDRESS      0xBB
 
 #define NUMBER_OF_COMMANDS      1
-#define COMMAND_ONE     0x1
+#define COMMAND_ONE     0x3
 #define COMMAND_TWO     0x2
 #define SLEEP_TIME      0
 
@@ -104,8 +105,6 @@ static void displaySetup()
     }
 }
 
-
-
 bool isPacketCorrect(EasyLink_RxPacket *rxp, EasyLink_TxPacket *txp)
 {
     uint16_t i;
@@ -128,6 +127,43 @@ void *mainThread(void *arg0)
     static volatile bool bEchoDoneFlag;
     EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
     EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
+
+    // Set up desired quaternion to be sent to femtosat
+    float quatFloat[4] = {1.0, 0.0, 0.0, 0.0};
+    int i, quatInt[4];
+    uint8_t quatTx[16];
+
+    for(i = 0; i < 4; i++)
+    {
+        quatInt[i] = quatFloat[i] * 1000;
+    }
+
+    /* Split 4-bye integer into 4 individual bytes.
+     * These will get transferred one byte at a time
+     * as unsigned 8-bit integers.
+     * On the receiver end, these will be combined back into
+     * a 32-bit integer, then a float for the original
+     * quaternion format.
+     */
+    quatTx[0] = (quatInt[0] & 0xFF000000) >> 24;
+    quatTx[1] = (quatInt[0] & 0x00FF0000) >> 16;
+    quatTx[2] = (quatInt[0] & 0x0000FF00) >> 8;
+    quatTx[3] = (quatInt[0] & 0x000000FF);
+
+    quatTx[4] = (quatInt[1] & 0xFF000000) >> 24;
+    quatTx[5] = (quatInt[1] & 0x00FF0000) >> 16;
+    quatTx[6] = (quatInt[1] & 0x0000FF00) >> 8;
+    quatTx[7] = (quatInt[1] & 0x000000FF);
+
+    quatTx[8] = (quatInt[2] & 0xFF000000) >> 24;
+    quatTx[9] = (quatInt[2] & 0x00FF0000) >> 16;
+    quatTx[10] = (quatInt[2] & 0x0000FF00) >> 8;
+    quatTx[11] = (quatInt[2] & 0x000000FF);
+
+    quatTx[12] = (quatInt[3] & 0xFF000000) >> 24;
+    quatTx[13] = (quatInt[3] & 0x00FF0000) >> 16;
+    quatTx[14] = (quatInt[3] & 0x0000FF00) >> 8;
+    quatTx[15] = (quatInt[3] & 0x000000FF);
 
     /* Open LED pins */
     pinHandle = PIN_open(&pinState, pinTable);
@@ -171,12 +207,10 @@ void *mainThread(void *arg0)
         txPacket.payload[1] = NUMBER_OF_COMMANDS;
         txPacket.payload[2] = COMMAND_ONE;
         txPacket.payload[3] = SLEEP_TIME;
-        txPacket.payload[4] = COMMAND_TWO;
-        txPacket.payload[5] = SLEEP_TIME;
-        uint8_t i;
-        for (i = 6; i < RFEASYLINKECHO_PAYLOAD_LENGTH; i++)
+        // Fill TX packet with quaternion data
+        for (i = 4; i < 23; i++)
         {
-            txPacket.payload[i] = rand();
+            txPacket.payload[i] = quatTx[i-4];
         }
 
         txPacket.len = RFEASYLINKECHO_PAYLOAD_LENGTH;

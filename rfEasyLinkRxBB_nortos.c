@@ -67,7 +67,8 @@
 #define BUFF_SIZE   1024
 
 static void displaySetup();
-static void dummyCommand(uint8_t commandID, uint8_t sleepTime);
+static void dummyCommand(uint8_t commandID, uint8_t rxPacket[30], uint8_t sleepTime);
+static void displayQuat(uint8_t rxPacket[30]);
 
 /* Pin driver handle */
 static PIN_Handle pinHandle;
@@ -110,7 +111,7 @@ static void displaySetup()
  *  @return none
  *
  */
-static void dummyCommand(uint8_t commandID, uint8_t sleepTime)
+static void dummyCommand(uint8_t commandID, uint8_t rxPacket[30], uint8_t sleepTime)
 {
     switch(commandID)
     {
@@ -124,12 +125,47 @@ static void dummyCommand(uint8_t commandID, uint8_t sleepTime)
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
         break;
     case 0x3:
-        //Insert another command here.
+        displayQuat(rxPacket);
+        break;
+    case 0x4:
+        // Place any new commands here
         break;
     default:
         break;
     }
     sleep(sleepTime);
+}
+
+/**
+ *  @brief  Recombine RX packet elements to obtain desired quaternion.
+ *
+ *  @param quatRx  Quaternion bytes
+ *  @return none
+ *
+ */
+static void displayQuat(uint8_t rxPacket[30])
+{
+    uint8_t i, quatRx[16];
+    int quatInt[4];
+    float quatFloat[4];
+
+    // Get quaternion data from RX packet
+    for(i = 0; i < 16; i++)
+    {
+        quatRx[i] = rxPacket[i+4];
+    }
+
+    // Combine all 4 bytes from RX packet to get correct quaternion format
+    for(i = 0; i < 4; i++)
+    {
+        quatInt[i] = (quatRx[i*4] << 24) | (quatRx[(i*4)+1] << 16) | (quatRx[(i*4)+2] << 8) | (quatRx[(i*4)+3]);
+        quatFloat[i] = quatInt[i] / 1000;
+    }
+
+    //Display the final, recovered quaternion to the user
+    Display_printf(display, 0, 0, "Quaternion: {%f, %f, %f, %f}\n",
+                   quatFloat[0], quatFloat[1], quatFloat[2], quatFloat[3]);
+
 }
 
 void *mainThread(void *arg0)
@@ -243,7 +279,7 @@ void *mainThread(void *arg0)
                     if(!(i % 2))
                     {
                         Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i]);
-                        dummyCommand(rxPacket.payload[i], rxPacket.payload[i+1]);
+                        dummyCommand(rxPacket.payload[i], rxPacket.payload, rxPacket.payload[i+1]);
                     }
                 }
             }
