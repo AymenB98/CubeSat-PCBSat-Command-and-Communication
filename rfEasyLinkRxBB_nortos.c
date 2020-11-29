@@ -75,6 +75,7 @@ static PIN_Handle pinHandle;
 static PIN_State pinState;
 static Display_Handle display;
 
+
 /*
  * Application LED pin configuration table:
  *   - All LEDs board LEDs are off.
@@ -115,8 +116,14 @@ static void dummyCommand(uint8_t commandID, uint8_t rxPacket[30], uint8_t sleepT
 {
     switch(commandID)
     {
+    case 0x0:
+        // Do nothing
+        break;
     case 0x1:
-        //RSSI command -> do nothing.
+        /* Recombine bytes from ground station to get
+         * quaternion data.
+         */
+        displayQuat(rxPacket);
         break;
     case 0x2:
         //Set green LED high for 2 seconds.
@@ -125,9 +132,6 @@ static void dummyCommand(uint8_t commandID, uint8_t rxPacket[30], uint8_t sleepT
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
         break;
     case 0x3:
-        displayQuat(rxPacket);
-        break;
-    case 0x4:
         // Place any new commands here
         break;
     default:
@@ -268,18 +272,44 @@ void *mainThread(void *arg0)
 
                 //Perform command(s) sent by CubeSat.
                 uint8_t i;
+                uint8_t count = 0;
                 uint8_t commands = rxPacket.payload[1];
+
                 /* Set up for-loop so that it iterates through the array
                  * the correct number of times.
                  */
                 uint8_t loopSize = (commands * 2) + 2;
-                for(i = 2; i < loopSize; i++)
+                // If quaternion is not being sent, loop through payload as usual
+                if(rxPacket.payload[2] != 0x1)
                 {
-                    //Command IDs are only found on every other element (starting from element 2).
-                    if(!(i % 2))
+                    for(i = 2; i < loopSize; i++)
                     {
-                        Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i]);
-                        dummyCommand(rxPacket.payload[i], rxPacket.payload, rxPacket.payload[i+1]);
+                        //Command IDs are only found on every other element (starting from element 2)
+                        if(!(i % 2))
+                        {
+                            Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i]);
+                            dummyCommand(rxPacket.payload[i], rxPacket.payload, rxPacket.payload[i+1]);
+                        }
+                    }
+                }
+                else
+                {
+                    // Perform quat command as usual
+                    Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[2]);
+                    dummyCommand(rxPacket.payload[2], rxPacket.payload, rxPacket.payload[3]);
+                    count = 1;
+
+                    // Perform commands after quat then set quatFlag low again
+                    for(i = 20; i < RFEASYLINKECHO_PAYLOAD_LENGTH; i++)
+                    {
+                        // Command IDs will be on odd numbers (elements of the array)
+                        // No need to loop through whole array if commands are finished
+                        if(!(i % 2) && (count < commands))
+                        {
+                            Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i]);
+                            dummyCommand(rxPacket.payload[i], rxPacket.payload, rxPacket.payload[i+1]);
+                            count++;
+                        }
                     }
                 }
             }

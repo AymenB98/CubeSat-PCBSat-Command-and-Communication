@@ -56,16 +56,16 @@
 /* EasyLink API Header files */
 #include "easylink/EasyLink.h"
 
-#define RUN_STOP    0
 #define RFEASYLINKECHO_PAYLOAD_LENGTH   30
 #define RX_TIMEOUT   500
 
 #define CUBESAT_ADDRESS     0xCC
 #define FEMTO_ADDRESS      0xBB
 
-#define NUMBER_OF_COMMANDS      1
-#define COMMAND_ONE     0x3
+#define NUMBER_OF_COMMANDS      3
+#define COMMAND_ONE     0x1
 #define COMMAND_TWO     0x2
+#define COMMAND_THREE   0x3
 #define SLEEP_TIME      0
 
 //Function prototypes
@@ -129,7 +129,7 @@ void *mainThread(void *arg0)
     EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
 
     // Set up desired quaternion to be sent to femtosat
-    float quatFloat[4] = {1.0, 0.0, 0.0, 0.0};
+    float quatFloat[4] = {-1000.0, 2.0, 3.0, -4.0};
     int i, quatInt[4];
     uint8_t quatTx[16];
 
@@ -138,7 +138,7 @@ void *mainThread(void *arg0)
         quatInt[i] = quatFloat[i] * 1000;
     }
 
-    /* Split 4-bye integer into 4 individual bytes.
+    /* Split 4-byte integer into 4 individual bytes.
      * These will get transferred one byte at a time
      * as unsigned 8-bit integers.
      * On the receiver end, these will be combined back into
@@ -208,9 +208,17 @@ void *mainThread(void *arg0)
         txPacket.payload[2] = COMMAND_ONE;
         txPacket.payload[3] = SLEEP_TIME;
         // Fill TX packet with quaternion data
-        for (i = 4; i < 23; i++)
+        for (i = 4; i < 20; i++)
         {
             txPacket.payload[i] = quatTx[i-4];
+        }
+        txPacket.payload[20] = COMMAND_TWO;
+        txPacket.payload[21] = SLEEP_TIME;
+        txPacket.payload[22] = COMMAND_THREE;
+        txPacket.payload[23] = SLEEP_TIME;
+        for(i = 24; i < RFEASYLINKECHO_PAYLOAD_LENGTH; i++)
+        {
+            txPacket.payload[i] = 0;
         }
 
         txPacket.len = RFEASYLINKECHO_PAYLOAD_LENGTH;
