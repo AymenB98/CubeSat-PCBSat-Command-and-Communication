@@ -243,7 +243,7 @@ void *mainThread(void *arg0)
 
         if(bBlockTransmit == false)
         {
-            /* Switch to Transmitter and echo the packet if transmission
+            /* Switch to transmitter and echo the packet if transmission
              * is not blocked
              */
             txPacket.len = RFEASYLINKECHO_PAYLOAD_LENGTH;
