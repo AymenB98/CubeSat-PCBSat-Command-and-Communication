@@ -67,6 +67,8 @@
 #define BUFF_SIZE   1024
 
 static void displaySetup();
+static void commandRx();
+static void ackTx();
 static void dummyCommand(uint8_t commandID, uint8_t rxPacket[30], uint8_t sleepTime);
 static void displayQuat(uint8_t rxPacket[30]);
 
@@ -74,6 +76,16 @@ static void displayQuat(uint8_t rxPacket[30]);
 static PIN_Handle pinHandle;
 static PIN_State pinState;
 static Display_Handle display;
+
+// Initialise the EasyLink parameters to their default values
+EasyLink_Params easyLink_params;
+EasyLink_Status result;
+
+// RF variables
+uint32_t absTime;
+static bool bBlockTransmit = false;
+EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
+EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
 
 
 /*
@@ -86,6 +98,19 @@ PIN_Config pinTable[] = {
     PIN_TERMINATE
 };
 
+static void ledSetup()
+{
+    // Open LED pins
+    pinHandle = PIN_open(&pinState, pinTable);
+    if (pinHandle == NULL)
+    {
+        while(1);
+    }
+
+    // Clear LED pins
+    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+}
 /**
  *  @brief  Setup display driver.
  *
@@ -103,6 +128,114 @@ static void displaySetup()
         /* Failed to open display driver */
         while (1);
     }
+}
+
+static void commandRx()
+{
+    rxPacket.absTime = 0;
+    EasyLink_receive(&rxPacket);
+    if (result == EasyLink_Status_Success)
+    {
+        /* Toggle LED2 to indicate RX, clear LED1 */
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+        /* Copy contents of RX packet to TX packet */
+        memcpy(&txPacket.payload, &rxPacket.payload, rxPacket.len);
+        /* Permit echo transmission */
+        bBlockTransmit = false;
+        Display_printf(display, 0, 0, "Packet received from CubeSat.\n");
+    }
+    else
+    {
+        /* Set LED1 and clear LED2 to indicate error */
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+        Display_printf(display, 0, 0, "Packet not received from CubeSat.\n");
+        /* Block echo transmission */
+        bBlockTransmit = true;
+    }
+}
+
+static void ackTx()
+{
+    /* Switch to transmitter and echo the packet if transmission
+     * is not blocked
+     */
+    txPacket.len = RFEASYLINKECHO_PAYLOAD_LENGTH;
+
+    /*
+     * Address filtering is enabled by default on the Rx device with the
+     * an address of 0xAA. This device must set the dstAddr accordingly.
+     */
+    txPacket.dstAddr[0] = CUBESAT_ADDRESS;
+
+    // Set Tx absolute time to current time.
+    if(EasyLink_getAbsTime(&absTime) != EasyLink_Status_Success)
+    {
+        // Problem getting absolute time
+    }
+    txPacket.absTime = absTime;
+
+    result = EasyLink_transmit(&txPacket);
+
+    if(result == EasyLink_Status_Success)
+    {
+        /* Toggle LED2 to indicate Echo TX, clear LED1 */
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+        Display_printf(display, 0, 0, "Ack sent to CubeSat.\n");
+
+        //Perform command(s) sent by CubeSat.
+        uint8_t i;
+        uint8_t count = 0;
+        uint8_t commands = rxPacket.payload[1];
+
+        /* Set up for-loop so that it iterates through the array
+         * the correct number of times.
+         */
+        uint8_t loopSize = (commands * 2) + 2;
+        // If quaternion is not being sent, loop through payload as usual
+        if(rxPacket.payload[2] != 0x1)
+        {
+            for(i = 2; i < loopSize; i++)
+            {
+                //Command IDs are only found on every other element (starting from element 2)
+                if(!(i % 2))
+                {
+                    Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i]);
+                    dummyCommand(rxPacket.payload[i], rxPacket.payload, rxPacket.payload[i+1]);
+                }
+            }
+        }
+        else
+        {
+            // Perform quat command as usual
+            Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[2]);
+            dummyCommand(rxPacket.payload[2], rxPacket.payload, rxPacket.payload[3]);
+            count = 1;
+
+            // Perform commands after quat then set quatFlag low again
+            for(i = 20; i < RFEASYLINKECHO_PAYLOAD_LENGTH; i++)
+            {
+                // Command IDs will be on odd numbers (elements of the array)
+                // No need to loop through whole array if commands are finished
+                if(!(i % 2) && (count < commands))
+                {
+                    Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i]);
+                    dummyCommand(rxPacket.payload[i], rxPacket.payload, rxPacket.payload[i+1]);
+                    count++;
+                }
+            }
+        }
+    }
+    else
+    {
+        /* Set LED1 and clear LED2 to indicate error */
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+        Display_printf(display, 0, 0, "Femtosat error.\n");
+    }
+
 }
 
 /**
@@ -174,36 +307,17 @@ static void displayQuat(uint8_t rxPacket[30])
 
 void *mainThread(void *arg0)
 {
-    uint32_t absTime;
-    static volatile bool bEchoDoneFlag;
-    static bool bBlockTransmit = false;
-    EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
-    EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
-
-    /* Open LED pins */
-    pinHandle = PIN_open(&pinState, pinTable);
-    if (pinHandle == NULL)
-    {
-        while(1);
-    }
-
-    /* Clear LED pins */
-    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-
+    ledSetup();
     displaySetup();
     Display_printf(display, 0, 0, "Starting femtosat...\n");
-
-    // Initialise the EasyLink parameters to their default values
-    EasyLink_Params easyLink_params;
-    EasyLink_Params_init(&easyLink_params);
 
     /*
      * Initialise EasyLink with the settings found in easylink_config.h
      * Modify EASYLINK_PARAM_CONFIG in easylink_config.h to change the default
      * PHY
      */
-    if (EasyLink_init(&easyLink_params) != EasyLink_Status_Success)
+    EasyLink_Params_init(&easyLink_params);
+    if(EasyLink_init(&easyLink_params) != EasyLink_Status_Success)
     {
         while(1);
     }
@@ -216,110 +330,23 @@ void *mainThread(void *arg0)
 
     while(1)
     {
-        rxPacket.absTime = 0;
-        EasyLink_Status result = EasyLink_receive(&rxPacket);
-
-        if (result == EasyLink_Status_Success)
-        {
-            /* Toggle LED2 to indicate RX, clear LED1 */
-            PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
-            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-            /* Copy contents of RX packet to TX packet */
-            memcpy(&txPacket.payload, &rxPacket.payload, rxPacket.len);
-            /* Permit echo transmission */
-            bBlockTransmit = false;
-            Display_printf(display, 0, 0, "Packet received from CubeSat.\n");
-        }
-        else
-        {
-            /* Set LED1 and clear LED2 to indicate error */
-            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-            Display_printf(display, 0, 0, "Packet not received from CubeSat.\n");
-            /* Block echo transmission */
-            bBlockTransmit = true;
-
-        }
+        /*************************************************************************
+         *                                                                       *
+         *---------------------------->RX MODE                                   *
+         *                   Get command(s) from CubeSat                         *
+         *                                                                       *
+         *************************************************************************/
+        commandRx();
 
         if(bBlockTransmit == false)
         {
-            /* Switch to transmitter and echo the packet if transmission
-             * is not blocked
-             */
-            txPacket.len = RFEASYLINKECHO_PAYLOAD_LENGTH;
-
-            /*
-             * Address filtering is enabled by default on the Rx device with the
-             * an address of 0xAA. This device must set the dstAddr accordingly.
-             */
-            txPacket.dstAddr[0] = CUBESAT_ADDRESS;
-
-            // Set Tx absolute time to current time.
-            if(EasyLink_getAbsTime(&absTime) != EasyLink_Status_Success)
-            {
-                // Problem getting absolute time
-            }
-            txPacket.absTime = absTime;
-
-            EasyLink_Status result = EasyLink_transmit(&txPacket);
-
-            if (result == EasyLink_Status_Success)
-            {
-                /* Toggle LED2 to indicate Echo TX, clear LED1 */
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-                Display_printf(display, 0, 0, "Ack sent to CubeSat.\n");
-
-                //Perform command(s) sent by CubeSat.
-                uint8_t i;
-                uint8_t count = 0;
-                uint8_t commands = rxPacket.payload[1];
-
-                /* Set up for-loop so that it iterates through the array
-                 * the correct number of times.
-                 */
-                uint8_t loopSize = (commands * 2) + 2;
-                // If quaternion is not being sent, loop through payload as usual
-                if(rxPacket.payload[2] != 0x1)
-                {
-                    for(i = 2; i < loopSize; i++)
-                    {
-                        //Command IDs are only found on every other element (starting from element 2)
-                        if(!(i % 2))
-                        {
-                            Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i]);
-                            dummyCommand(rxPacket.payload[i], rxPacket.payload, rxPacket.payload[i+1]);
-                        }
-                    }
-                }
-                else
-                {
-                    // Perform quat command as usual
-                    Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[2]);
-                    dummyCommand(rxPacket.payload[2], rxPacket.payload, rxPacket.payload[3]);
-                    count = 1;
-
-                    // Perform commands after quat then set quatFlag low again
-                    for(i = 20; i < RFEASYLINKECHO_PAYLOAD_LENGTH; i++)
-                    {
-                        // Command IDs will be on odd numbers (elements of the array)
-                        // No need to loop through whole array if commands are finished
-                        if(!(i % 2) && (count < commands))
-                        {
-                            Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i]);
-                            dummyCommand(rxPacket.payload[i], rxPacket.payload, rxPacket.payload[i+1]);
-                            count++;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                /* Set LED1 and clear LED2 to indicate error */
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-                Display_printf(display, 0, 0, "Femtosat error.\n");
-            }
+            /*************************************************************************
+             *                                                                       *
+             *<--------------------------TX MODE                                     *
+             *                   Send ack to CubeSat                                 *
+             *                                                                       *
+             *************************************************************************/
+            ackTx();
         }
     }
 }
