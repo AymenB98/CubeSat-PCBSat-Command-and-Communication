@@ -66,6 +66,7 @@
 
 #define BUFF_SIZE   1024
 
+static void ledSetup();
 static void displaySetup();
 static void commandRx();
 static void ackTx();
