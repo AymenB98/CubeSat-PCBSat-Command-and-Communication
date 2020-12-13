@@ -106,7 +106,7 @@ static void rfPacketSetup();
 static void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte, uint8_t femtoAddr);
 static void cubeSatTx();
 static bool cubeSatAckRx();
-static void dataRx();
+static void dataRx(bool ackFlag);
 
 // Pin driver handle
 static PIN_Handle pinHandle;
@@ -414,7 +414,7 @@ static bool cubeSatAckRx()
  *  @return none
  *
  */
-static void dataRx()
+static void dataRx(bool ackFlag)
 {
     /* Stay in RX mode until data is received from CubeSat.
      * Exit loop after a five attempts to restart RF link w/ CubeSat.
@@ -422,7 +422,6 @@ static void dataRx()
      * Cubesat get stuck waiting for each other to send data.
      */
     uint8_t count = 0;
-    bool ackFlag = true;
     while(ackFlag && (count < 5))
     {
         // Restart RX mode and wait for data from CubeSat
@@ -512,7 +511,7 @@ void *mainThread(void *arg0)
          *                      Receive data from CubeSat                        *
          *                                                                       *
          *************************************************************************/
-        dataRx();
+        dataRx(ackFlag);
 
     }
 }
