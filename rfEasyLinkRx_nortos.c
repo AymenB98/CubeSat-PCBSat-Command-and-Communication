@@ -83,16 +83,33 @@
 static void driverSetup();
 static bool sdSetup(int8_t rssi, uint8_t errorCode);
 static bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure);
+static void commandRx();
+static void groundStationAckTx();
+static void commandTx();
+static void femtosatAckRx();
+static void dataTx();
+bool isPacketCorrect(EasyLink_RxPacket *rxp, EasyLink_TxPacket *txp);
 
-/* Driver handles */
+// Driver handles
 static PIN_Handle pinHandle;
 static PIN_State pinState;
 static Display_Handle display;
 SD_Handle sdHandle;
 
-//SD variables
+// SD variables
 unsigned char sdPacket[BUFFSIZE];
 unsigned char cpyBuff[BUFFSIZE];
+
+
+//Initialise the EasyLink parameters to their default values
+EasyLink_Params easyLink_params;
+
+//RF variables
+EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
+EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
+uint32_t absTime;
+EasyLink_Status result;
+static bool bBlockTransmit = false;
 
 /*
  * Application LED pin configuration table:
@@ -103,9 +120,6 @@ PIN_Config pinTable[] = {
     Board_PIN_LED2 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
     PIN_TERMINATE
 };
-
-static volatile bool bEchoDoneFlag;
-
 
 /**
  *  @brief  Setup LED and display drivers.
@@ -258,6 +272,217 @@ static bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure)
 }
 
 /**
+ *  @brief  Enter RX mode to get commands from ground station
+ *
+ *  @return none
+ *
+ */
+static void commandRx()
+{
+    rxPacket.absTime = 0;
+    rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT * 3);
+    EasyLink_Status result = EasyLink_receive(&rxPacket);
+
+    if (result == EasyLink_Status_Success)
+    {
+        // Toggle LED2 to indicate RX, clear LED1
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+        // Copy contents of RX packet to TX packet
+        memcpy(&txPacket.payload, &rxPacket.payload, rxPacket.len);
+        Display_printf(display, 0, 0, "Command received from ground station.\n");
+        // Permit echo transmission
+        bBlockTransmit = false;
+    }
+    else if(result == EasyLink_Status_Rx_Timeout)
+    {
+        // Set LED1 and clear LED2 to indicate timeout
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+        //Notify user that CubeSat has not received command yet.
+        Display_printf(display, 0, 0, "Timeout error: waiting for command from ground station...\n");
+        // Block echo transmission
+        bBlockTransmit = true;
+    }
+    else
+    {
+        // Set LED1 and clear LED2 to indicate timeout
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+        //Notify user that CubeSat has not received command yet.
+        Display_printf(display, 0, 0, "Error receiving command from ground station.\n");
+        // Block echo transmission
+        bBlockTransmit = true;
+    }
+}
+
+/**
+ *  @brief  Echo the packet from the ground station (ack)
+ *
+ *  @return none
+ *
+ */
+static void groundStationAckTx()
+{
+    txPacket.len = RFEASYLINKECHO_PAYLOAD_LENGTH;
+
+    // Send packet back to ground station for ack
+    txPacket.dstAddr[0] = GROUND_ADDRESS;
+
+    // Set Tx absolute time to current time + 100ms
+    if(EasyLink_getAbsTime(&absTime) != EasyLink_Status_Success)
+    {
+        // Problem getting absolute time
+    }
+    txPacket.absTime = absTime;
+
+    EasyLink_Status result = EasyLink_transmit(&txPacket);
+
+    if (result == EasyLink_Status_Success)
+    {
+        // Toggle LED2 to indicate Echo TX, clear LED1
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+        Display_printf(display, 0, 0, "Ack sent to ground station.\n");
+    }
+    else
+    {
+        // Set LED1 and clear LED2 to indicate error
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+        Display_printf(display, 0, 0, "CubeSat TX error.\n");
+    }
+}
+
+/**
+ *  @brief  Perform TX command to send commands to femtosat
+ *
+ *  @return none
+ *
+ */
+static void commandTx()
+{
+    // Now that ack has been sent, relay data to femtosat
+    txPacket.dstAddr[0] = txPacket.payload[0];
+
+    result = EasyLink_transmit(&txPacket);
+    if (result == EasyLink_Status_Success)
+    {
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+        Display_printf(display, 0, 0, "CubeSat TX to femtosat successful.\n");
+    }
+    else
+    {
+        // Set LED1 and clear LED2 to indicate error
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+        Display_printf(display, 0, 0, "CubeSat TX error.\n");
+    }
+}
+
+/**
+ *  @brief  Enter RX mode to receive ack from femtosat
+ *
+ *  @return none
+ *
+ */
+static void femtosatAckRx()
+{
+    // Switch to Receiver, set a timeout interval of 500ms */
+    rxPacket.absTime = 0;
+    rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
+    uint8_t error;
+    bool sdFlag;
+
+    result = EasyLink_receive(&rxPacket);
+
+    /* Check Received packet against what was sent, it should be identical
+     * to the transmitted packet
+     */
+    if (result == EasyLink_Status_Success &&
+            isPacketCorrect(&rxPacket, &txPacket))
+    {
+        // Successful RX.
+        error = 0;
+        // Toggle LED1, clear LED2 to indicate Echo RX
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+
+        Display_printf(display, 0, 0, "Ack received from femtosat.\n");
+        Display_printf(display, 0, 0, "%x RSSI: %ddBm\n", txPacket.dstAddr[0], rxPacket.rssi);
+        // Log successful exchange in microSD card
+        sdFlag = sdSetup(rxPacket.rssi, error);
+    }
+    else if (result == EasyLink_Status_Rx_Timeout)
+    {
+        // Set LED2 and clear LED1 to indicate Rx Timeout
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+        Display_printf(display, 0, 0, "Device timed out before ack received from femtosat.\n");
+        // Log timeout error in microSD card.
+        error = 1;
+        // There will be no RSSI since RX not successful, pass default value to function
+        sdFlag = sdSetup(0, error);
+    }
+    else
+    {
+        // Set both LED1 and LED2 to indicate error
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+        Display_printf(display, 0, 0, "Error.\n");
+        // Log error in microSD card
+        error = 2;
+        sdFlag = sdSetup(0, error);
+    }
+
+    // Set up packet to be transmitted to ground station
+    txPacket.dstAddr[0] = GROUND_ADDRESS;
+    // If sdFlag is not raised, use value read from microSD card
+    if(!sdFlag)
+    {
+        // Send RSSI data stored in first byte of sdPacket
+        txPacket.payload[0] = (uint8_t)cpyBuff[0];
+        // Send status stored in second byte of sdPacket
+        txPacket.payload[1] = cpyBuff[1];
+    }
+    // If flag is raised, use locally stored values
+    else
+    {
+        //RSSI value
+        txPacket.payload[0] = (uint8_t)rxPacket.rssi;
+        //Status of RSSI operation
+        txPacket.payload[1] = error;
+    }
+}
+
+/**
+ *  @brief  Enter TX mode and send data to ground station
+ *
+ *  @return none
+ *
+ */
+static void dataTx()
+{
+    result = EasyLink_transmit(&txPacket);
+    if (result == EasyLink_Status_Success)
+    {
+        // Toggle LED2 and clear LED 1 to indicate success
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+        Display_printf(display, 0, 0, "CubeSat TX to ground station successful.\n");
+    }
+    else
+    {
+        // Set LED1 and clear LED2 to indicate error
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+        Display_printf(display, 0, 0, "CubeSat TX error.\n");
+    }
+}
+
+
+/**
  *  @brief  Check that received packet is the same as transmitted packet
  *
  *  @param *rxp     Pointer to RX packet.
@@ -284,17 +509,7 @@ bool isPacketCorrect(EasyLink_RxPacket *rxp, EasyLink_TxPacket *txp)
 
 void *mainThread(void *arg0)
 {
-    uint32_t absTime;
     driverSetup();
-
-    EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
-    EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
-
-    static bool bBlockTransmit = false;
-
-
-    //Initialise the EasyLink parameters to their default values
-    EasyLink_Params easyLink_params;
     EasyLink_Params_init(&easyLink_params);
 
     /*
@@ -326,87 +541,17 @@ void *mainThread(void *arg0)
          *                   Get command(s) from ground station                  *
          *                                                                       *
          *************************************************************************/
-        rxPacket.absTime = 0;
-        rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT * 3);
-        EasyLink_Status result = EasyLink_receive(&rxPacket);
-
-        if (result == EasyLink_Status_Success)
-        {
-            // Toggle LED2 to indicate RX, clear LED1
-            PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
-            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-            // Copy contents of RX packet to TX packet
-            memcpy(&txPacket.payload, &rxPacket.payload, rxPacket.len);
-            Display_printf(display, 0, 0, "Command received from ground station.\n");
-            // Permit echo transmission
-            bBlockTransmit = false;
-        }
-        else if(result == EasyLink_Status_Rx_Timeout)
-        {
-            // Set LED1 and clear LED2 to indicate timeout
-            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-            //Notify user that CubeSat has not received command yet.
-            Display_printf(display, 0, 0, "Timeout error: waiting for command from ground station...\n");
-            // Block echo transmission
-            bBlockTransmit = true;
-        }
-        else
-        {
-            // Set LED1 and clear LED2 to indicate timeout
-            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-            //Notify user that CubeSat has not received command yet.
-            Display_printf(display, 0, 0, "Error receiving command from ground station.\n");
-            // Block echo transmission
-            bBlockTransmit = true;
-
-        }
+        commandRx();
 
         if(bBlockTransmit == false)
         {
-            /* Switch to Transmitter and echo the packet if transmission
-             * is not blocked
-             */
-
             /*************************************************************************
              *                                                                       *
              *<--------------------------TX MODE                                     *
              *                   Send ack to ground station                          *
              *                                                                       *
              *************************************************************************/
-
-            txPacket.len = RFEASYLINKECHO_PAYLOAD_LENGTH;
-
-            // Send packet back to ground station for ack
-            txPacket.dstAddr[0] = GROUND_ADDRESS;
-
-            // Set Tx absolute time to current time + 100ms
-            if(EasyLink_getAbsTime(&absTime) != EasyLink_Status_Success)
-            {
-                // Problem getting absolute time
-            }
-            txPacket.absTime = absTime;
-
-            EasyLink_Status result = EasyLink_transmit(&txPacket);
-
-            if (result == EasyLink_Status_Success)
-            {
-                // Toggle LED2 to indicate Echo TX, clear LED1
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-                Display_printf(display, 0, 0, "Ack sent to ground station.\n");
-            }
-            else
-            {
-                // Set LED1 and clear LED2 to indicate error
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-                Display_printf(display, 0, 0, "CubeSat TX error.\n");
-            }
-
-            // Now that ack has been sent, relay data to femtosat
-            txPacket.dstAddr[0] = txPacket.payload[0];
+            groundStationAckTx();
 
             /*************************************************************************
              *                                                                       *
@@ -414,27 +559,7 @@ void *mainThread(void *arg0)
              *                   Send commands to femtosat                           *
              *                                                                       *
              *************************************************************************/
-
-            result = EasyLink_transmit(&txPacket);
-            if (result == EasyLink_Status_Success)
-            {
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-                Display_printf(display, 0, 0, "CubeSat TX to femtosat successful.\n");
-            }
-            else
-            {
-                // Set LED1 and clear LED2 to indicate error
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-                Display_printf(display, 0, 0, "CubeSat TX error.\n");
-            }
-
-            // Switch to Receiver, set a timeout interval of 500ms */
-            rxPacket.absTime = 0;
-            rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
-            uint8_t error;
-            bool sdFlag;
+            commandTx();
 
             /*************************************************************************
              *                                                                       *
@@ -442,67 +567,7 @@ void *mainThread(void *arg0)
              *                   Get ack from femtosat                               *
              *                                                                       *
              *************************************************************************/
-
-            result = EasyLink_receive(&rxPacket);
-
-            /* Check Received packet against what was sent, it should be identical
-             * to the transmitted packet
-             */
-            if (result == EasyLink_Status_Success &&
-                    isPacketCorrect(&rxPacket, &txPacket))
-            {
-                // Successful RX.
-                error = 0;
-                // Toggle LED1, clear LED2 to indicate Echo RX
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-
-                Display_printf(display, 0, 0, "Ack received from femtosat.\n");
-                Display_printf(display, 0, 0, "%x RSSI: %ddBm\n", txPacket.dstAddr[0], rxPacket.rssi);
-                // Log successful exchange in microSD card
-                sdFlag = sdSetup(rxPacket.rssi, error);
-            }
-            else if (result == EasyLink_Status_Rx_Timeout)
-            {
-                // Set LED2 and clear LED1 to indicate Rx Timeout
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-                Display_printf(display, 0, 0, "Device timed out before ack received from femtosat.\n");
-                // Log timeout error in microSD card.
-                error = 1;
-                // There will be no RSSI since RX not successful, pass default value to function
-                sdFlag = sdSetup(0, error);
-            }
-            else
-            {
-                // Set both LED1 and LED2 to indicate error
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-                Display_printf(display, 0, 0, "Error.\n");
-                // Log error in microSD card
-                error = 2;
-                sdFlag = sdSetup(0, error);
-            }
-
-            // Now that ack has been received, relay data to ground station
-            txPacket.dstAddr[0] = GROUND_ADDRESS;
-            // If sdFlag is not raised, use value read from microSD card
-            if(!sdFlag)
-            {
-                // Send RSSI data stored in first byte of sdPacket
-                txPacket.payload[0] = (uint8_t)cpyBuff[0];
-                // Send status stored in second byte of sdPacket
-                txPacket.payload[1] = cpyBuff[1];
-            }
-            //If flag is raised, use locally stored values
-            else
-            {
-                //RSSI value
-                txPacket.payload[0] = (uint8_t)rxPacket.rssi;
-                //Status of RSSI operation
-                txPacket.payload[1] = error;
-            }
-
+            femtosatAckRx();
 
             /*************************************************************************
              *                                                                       *
@@ -510,21 +575,7 @@ void *mainThread(void *arg0)
              *                   Send data to ground station                         *
              *                                                                       *
              *************************************************************************/
-            result = EasyLink_transmit(&txPacket);
-            if (result == EasyLink_Status_Success)
-            {
-                // Toggle LED2 and clear LED 1 to indicate success
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-                Display_printf(display, 0, 0, "CubeSat TX to ground station successful.\n");
-            }
-            else
-            {
-                // Set LED1 and clear LED2 to indicate error
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-                Display_printf(display, 0, 0, "CubeSat TX error.\n");
-            }
+            dataTx();
         }
     }
 }
