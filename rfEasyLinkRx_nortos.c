@@ -386,7 +386,7 @@ void *mainThread(void *arg0)
             {
                 // Problem getting absolute time
             }
-            txPacket.absTime = absTime + EasyLink_ms_To_RadioTime(100);
+            txPacket.absTime = absTime;
 
             EasyLink_Status result = EasyLink_transmit(&txPacket);
 

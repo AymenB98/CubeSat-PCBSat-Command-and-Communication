@@ -30,6 +30,14 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
+/*
+ * This version of the code was created by Aymen Benylles by adapting TI examples.
+ * This code is for the ground station, and sends commands to the CubeSat.
+ *
+ */
+
+
 /*
  *  ======== rfEasyLinkEchoTx_nortos.c ========
  */
@@ -84,15 +92,11 @@
 // Function prototypes
 static void displaySetup();
 static void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte, uint8_t femtoAddr);
-static void quatGenerator(int quatInt[4]);
 
 // Pin driver handle
 static PIN_Handle pinHandle;
 static PIN_State pinState;
 static Display_Handle display;
-
-// Split quaternion to be sent to femtosatellite
-//uint8_t quatTx[16];
 
 /*
  * Application LED pin configuration table:
@@ -180,93 +184,6 @@ static void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte, uint8_t
     }
 }
 
-//static void quatGenerator(int quatInt[4])
-//{
-//    uint8_t i;
-//    for(i = 0; i < 4; i++)
-//    {
-//        switch(i % 4)
-//        {
-//        case 0:
-//            quatTx[i] = (quatInt[0] & 0xFF000000) >> 24;
-//            break;
-//        case 1:
-//            quatTx[i] = (quatInt[0] & 0x000000FF) >> 16;
-//            break;
-//        case 2:
-//            quatTx[i] = (quatInt[0] & 0x00FF0000) >> 8;
-//            break;
-//        case 3:
-//            quatTx[i] = (quatInt[0] & 0x0000FF00);
-//            break;
-//        default:
-//            break;
-//        }
-//    }
-//
-//    for(i = 4; i < 8; i++)
-//    {
-//        switch(i % 4)
-//        {
-//        case 0:
-//            quatTx[i] = (quatInt[1] & 0xFF000000) >> 24;
-//            break;
-//        case 1:
-//            quatTx[i] = (quatInt[1] & 0x000000FF) >> 16;
-//            break;
-//        case 2:
-//            quatTx[i] = (quatInt[1] & 0x00FF0000) >> 8;
-//            break;
-//        case 3:
-//            quatTx[i] = (quatInt[1] & 0x0000FF00);
-//            break;
-//        default:
-//            break;
-//        }
-//    }
-//
-//    for(i = 8; i < 12; i++)
-//    {
-//        switch(i % 4)
-//        {
-//        case 0:
-//            quatTx[i] = (quatInt[2] & 0xFF000000) >> 24;
-//            break;
-//        case 1:
-//            quatTx[i] = (quatInt[2] & 0x000000FF) >> 16;
-//            break;
-//        case 2:
-//            quatTx[i] = (quatInt[2] & 0x00FF0000) >> 8;
-//            break;
-//        case 3:
-//            quatTx[i] = (quatInt[2] & 0x0000FF00);
-//            break;
-//        default:
-//            break;
-//        }
-//    }
-//
-//    for(i = 12; i < 16; i++)
-//    {
-//        switch(i % 4)
-//        {
-//        case 0:
-//            quatTx[i] = (quatInt[3] & 0xFF000000) >> 24;
-//            break;
-//        case 1:
-//            quatTx[i] = (quatInt[3] & 0x000000FF) >> 16;
-//            break;
-//        case 2:
-//            quatTx[i] = (quatInt[3] & 0x00FF0000) >> 8;
-//            break;
-//        case 3:
-//            quatTx[i] = (quatInt[3] & 0x0000FF00);
-//            break;
-//        default:
-//            break;
-//        }
-//    }
-//}
 
 void *mainThread(void *arg0)
 {
@@ -407,13 +324,13 @@ void *mainThread(void *arg0)
 
         txPacket.dstAddr[0] = CUBESAT_ADDRESS;
 
-        // Set Tx absolute time to current time + 1000ms
+        // Set Tx absolute time to current time.
         if(EasyLink_getAbsTime(&absTime) != EasyLink_Status_Success)
         {
             // Problem getting absolute time
         }
 
-        txPacket.absTime = absTime + EasyLink_ms_To_RadioTime(100);
+        txPacket.absTime = absTime;
 
         /*************************************************************************
          *                                                                       *

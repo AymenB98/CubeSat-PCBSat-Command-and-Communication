@@ -194,12 +194,12 @@ void *mainThread(void *arg0)
     displaySetup();
     Display_printf(display, 0, 0, "Starting femtosat...\n");
 
-    // Initialize the EasyLink parameters to their default values
+    // Initialise the EasyLink parameters to their default values
     EasyLink_Params easyLink_params;
     EasyLink_Params_init(&easyLink_params);
 
     /*
-     * Initialize EasyLink with the settings found in easylink_config.h
+     * Initialise EasyLink with the settings found in easylink_config.h
      * Modify EASYLINK_PARAM_CONFIG in easylink_config.h to change the default
      * PHY
      */
@@ -254,12 +254,12 @@ void *mainThread(void *arg0)
              */
             txPacket.dstAddr[0] = CUBESAT_ADDRESS;
 
-            /* Set Tx absolute time to current time + 100ms*/
+            // Set Tx absolute time to current time.
             if(EasyLink_getAbsTime(&absTime) != EasyLink_Status_Success)
             {
                 // Problem getting absolute time
             }
-            txPacket.absTime = absTime + EasyLink_ms_To_RadioTime(100);
+            txPacket.absTime = absTime;
 
             EasyLink_Status result = EasyLink_transmit(&txPacket);
 
