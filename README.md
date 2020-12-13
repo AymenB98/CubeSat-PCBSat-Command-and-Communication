@@ -27,5 +27,5 @@ The examples this code was based on, along with any further help with the Simple
 
 # Board Output
 - An app such as PuTTY can be used to connect the microcontrollers to the dev kits. 
-- They will print the appropriate message on screen as well as blinking different LEDs upon reception.
-- Since there are so many possible outcomes, it is recommended that the user uses the UART display option, since what is goin on is much clearer.
+- They will print the appropriate message on screen as well as blinking different LEDs upon reception/trasmission.
+- Since there are so many possible outcomes, it is recommended that the user uses the UART display option, since what is going on is much clearer.
