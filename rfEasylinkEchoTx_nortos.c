@@ -89,9 +89,24 @@
  */
 #define SLEEP_TIME      0
 
+// Initialise the EasyLink parameters to their default values
+EasyLink_Params easyLink_params;
+
+// Variable the RF core uses to time commands
+uint32_t absTime;
+
+EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
+EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
+
+EasyLink_Status result;
+
 // Function prototypes
 static void displaySetup();
+static void rfPacketSetup();
 static void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte, uint8_t femtoAddr);
+static void cubeSatTx();
+static bool cubeSatAckRx();
+static void dataRx();
 
 // Pin driver handle
 static PIN_Handle pinHandle;
@@ -125,6 +140,123 @@ static void displaySetup()
         /* Failed to open display driver */
         while (1);
     }
+}
+
+/**
+ *  @brief  Setup packet to be sent to CubeSat
+ *
+ *  @return none
+ *
+ */
+static void rfPacketSetup()
+{
+    // Initialise variables for RF operations
+    EasyLink_Params_init(&easyLink_params);
+
+    // Set up desired quaternion to be sent to femtosat
+    float quatFloat[4] = {-1000.0, 2.0, 3.0, -4.0};
+
+    // Initialise variables to convert float into 8-bit integer array
+
+    /* Create integer array first, then split this up
+     * into 8-bit unsigned integers that are sent to CubeSat
+     */
+    int i, quatInt[4];
+    uint8_t quatTx[16];
+
+    // Convert float array into int array
+    for(i = 0; i < 4; i++)
+    {
+        quatInt[i] = quatFloat[i] * 1000;
+    }
+
+    /* Split 4-byte integer into 4 individual bytes.
+     * These will get transferred one byte at a time
+     * as unsigned 8-bit integers.
+     * On the receiver end, these will be combined back into
+     * a 32-bit integer, then a float for the original
+     * quaternion format.
+     */
+    quatTx[0] = (quatInt[0] & 0xFF000000) >> 24;
+    quatTx[1] = (quatInt[0] & 0x00FF0000) >> 16;
+    quatTx[2] = (quatInt[0] & 0x0000FF00) >> 8;
+    quatTx[3] = (quatInt[0] & 0x000000FF);
+
+    quatTx[4] = (quatInt[1] & 0xFF000000) >> 24;
+    quatTx[5] = (quatInt[1] & 0x00FF0000) >> 16;
+    quatTx[6] = (quatInt[1] & 0x0000FF00) >> 8;
+    quatTx[7] = (quatInt[1] & 0x000000FF);
+
+    quatTx[8] = (quatInt[2] & 0xFF000000) >> 24;
+    quatTx[9] = (quatInt[2] & 0x00FF0000) >> 16;
+    quatTx[10] = (quatInt[2] & 0x0000FF00) >> 8;
+    quatTx[11] = (quatInt[2] & 0x000000FF);
+
+    quatTx[12] = (quatInt[3] & 0xFF000000) >> 24;
+    quatTx[13] = (quatInt[3] & 0x00FF0000) >> 16;
+    quatTx[14] = (quatInt[3] & 0x0000FF00) >> 8;
+    quatTx[15] = (quatInt[3] & 0x000000FF);
+
+    // Open LED pins
+    pinHandle = PIN_open(&pinState, pinTable);
+    if (pinHandle == NULL)
+    {
+        while(1);
+    }
+
+    // Clear LEDs
+    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+
+    /*
+     * Initialise EasyLink with the settings found in easylink_config.h
+     * Modify EASYLINK_PARAM_CONFIG in easylink_config.h to change the default
+     * PHY
+     */
+    if (EasyLink_init(&easyLink_params) != EasyLink_Status_Success)
+    {
+        while(1);
+    }
+
+    /*
+     * If you wish to use a frequency other than the default (e.g. 433MHz), use
+     * the following API:
+     * EasyLink_setFrequency(433000000);
+     */
+
+    // Create the packet being sent to the CubeSat
+
+    // The 0th byte must contain the femtosat address
+    txPacket.payload[0] = FEMTO_ADDRESS;
+    // The next byte tells the femtosat how many commands it must perform
+    txPacket.payload[1] = NUMBER_OF_COMMANDS;
+    // Fill the next byte with the quaternion command
+    txPacket.payload[2] = COMMAND_ONE;
+    /* How long for the CubeSat to be in standby mode until
+     * the next instruction
+     */
+    txPacket.payload[3] = SLEEP_TIME;
+    // Fill TX packet with quaternion data
+    for (i = 4; i < 20; i++)
+    {
+        txPacket.payload[i] = quatTx[i-4];
+    }
+    /* If more commands are to be completed after the quaternion command,
+     * they are initialised here
+     */
+    txPacket.payload[20] = COMMAND_TWO;
+    txPacket.payload[21] = SLEEP_TIME;
+    txPacket.payload[22] = COMMAND_THREE;
+    txPacket.payload[23] = SLEEP_TIME;
+    // Fill the rest of the packet with 0s
+    for(i = 24; i < PAYLOAD_LENGTH; i++)
+    {
+        txPacket.payload[i] = 0;
+    }
+
+    txPacket.len = PAYLOAD_LENGTH;
+
+    txPacket.dstAddr[0] = CUBESAT_ADDRESS;
 }
 
 /**
@@ -184,102 +316,168 @@ static void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte, uint8_t
     }
 }
 
-
-void *mainThread(void *arg0)
+/**
+ *  @brief  Transmit command(s) to CubeSat
+ *
+ *  @return none
+ *
+ */
+static void cubeSatTx()
 {
-    // Initialise variables for RF operations
 
-    // Variable the RF core uses to time commands
-    uint32_t absTime;
-
-    /* Flag which indicates successful echo between
-     * ground station and femtosat
-     */
-    static volatile bool bEchoDoneFlag;
-
-    EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
-    EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
-
-    // Set up desired quaternion to be sent to femtosat
-    float quatFloat[4] = {-1000.0, 2.0, 3.0, -4.0};
-
-    // Initialise variables to convert float into 8-bit integer array
-
-    /* Create integer array first, then split this up
-     * into 8-bit unsigned integers that are sent to CubeSat
-     */
-    int i, quatInt[4];
-    uint8_t quatTx[16];
-
-    // Convert float array into int array
-    for(i = 0; i < 4; i++)
+    // Set Tx absolute time to current time
+    if(EasyLink_getAbsTime(&absTime) != EasyLink_Status_Success)
     {
-        quatInt[i] = quatFloat[i] * 1000;
-    }
-
-    /* Split 4-byte integer into 4 individual bytes.
-     * These will get transferred one byte at a time
-     * as unsigned 8-bit integers.
-     * On the receiver end, these will be combined back into
-     * a 32-bit integer, then a float for the original
-     * quaternion format.
-     */
-    quatTx[0] = (quatInt[0] & 0xFF000000) >> 24;
-    quatTx[1] = (quatInt[0] & 0x00FF0000) >> 16;
-    quatTx[2] = (quatInt[0] & 0x0000FF00) >> 8;
-    quatTx[3] = (quatInt[0] & 0x000000FF);
-
-    quatTx[4] = (quatInt[1] & 0xFF000000) >> 24;
-    quatTx[5] = (quatInt[1] & 0x00FF0000) >> 16;
-    quatTx[6] = (quatInt[1] & 0x0000FF00) >> 8;
-    quatTx[7] = (quatInt[1] & 0x000000FF);
-
-    quatTx[8] = (quatInt[2] & 0xFF000000) >> 24;
-    quatTx[9] = (quatInt[2] & 0x00FF0000) >> 16;
-    quatTx[10] = (quatInt[2] & 0x0000FF00) >> 8;
-    quatTx[11] = (quatInt[2] & 0x000000FF);
-
-    quatTx[12] = (quatInt[3] & 0xFF000000) >> 24;
-    quatTx[13] = (quatInt[3] & 0x00FF0000) >> 16;
-    quatTx[14] = (quatInt[3] & 0x0000FF00) >> 8;
-    quatTx[15] = (quatInt[3] & 0x000000FF);
-
-    // Open LED pins
-    pinHandle = PIN_open(&pinState, pinTable);
-    if (pinHandle == NULL)
-    {
+        // Problem getting absolute time
         while(1);
     }
 
-    // Clear LEDs
-    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+    txPacket.absTime = absTime;
+    result = EasyLink_transmit(&txPacket);
 
+    // TX to CubeSat was successful
+    if (result == EasyLink_Status_Success)
+    {
+        // Toggle LED1 to indicate TX
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
+        // Turn LED2 off, in case there was a prior error
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+        Display_printf(display, 0, 0, "Ground station TX successful.\n");
+    }
+    //TX to CubeSat failed
+    else
+    {
+        /* Set both LED1 and LED2 to indicate error */
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+        Display_printf(display, 0, 0, "Ground station TX error.\n");
+    }
+}
+
+/**
+ *  @brief  Switch to receive mode for ack from CubeSat
+ *
+ *  @return ackFlag
+ *
+ */
+static bool cubeSatAckRx()
+{
+
+    /* Flag indicating that ack has been received from CubeSat.
+     * When raised, data can be received.
+     * When held low, ground station must retransmit data to CubeSat.
+     */
+    bool ackFlag;
+
+    // Switch to RX mode immediately
+    rxPacket.absTime = 0;
+    // Set a timeout interval of 500ms
+    rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
+    result = EasyLink_receive(&rxPacket);
+
+    /* Check Received packet against what was sent, it should be identical
+     * to the transmitted packet
+     */
+    if(result == EasyLink_Status_Success &&
+            isPacketCorrect(&rxPacket, &txPacket))
+    {
+        /* Toggle LED1, clear LED2 to indicate Echo RX */
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+        Display_printf(display, 0, 0, "Ack received from CubeSat.\n");
+        ackFlag = true;
+    }
+    else if(result == EasyLink_Status_Rx_Timeout)
+    {
+        /* Set LED2 and clear LED1 to indicate Rx Timeout */
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+        Display_printf(display, 0, 0,
+                       "Device timed out before ack received from CubeSat.\n");
+        ackFlag = false;
+    }
+    else
+    {
+        /* Set both LED1 and LED2 to indicate error */
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+        Display_printf(display, 0, 0, "RX error.\n");
+        ackFlag = false;
+    }
+
+    return ackFlag;
+}
+
+/**
+ *  @brief  Switch to receive mode for data from CubeSat
+ *
+ *  @return none
+ *
+ */
+static void dataRx()
+{
+    /* Stay in RX mode until data is received from CubeSat.
+     * Exit loop after a five attempts to restart RF link w/ CubeSat.
+     * If this is not performed, there is a chance that the ground station and
+     * Cubesat get stuck waiting for each other to send data.
+     */
+    uint8_t count = 0;
+    bool ackFlag = true;
+    while(ackFlag && (count < 5))
+    {
+        // Restart RX mode and wait for data from CubeSat
+        rxPacket.absTime = 0;
+        // Set timeout interval to 1000ms (1s)
+        rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT * 2);
+
+        result = EasyLink_receive(&rxPacket);
+        uint8_t femtoAddr = FEMTO_ADDRESS;
+
+        // No need to check the packet since this is a data transmission
+        if (result == EasyLink_Status_Success)
+        {
+            // Toggle LED1, clear LED2 to indicate Echo RX
+            PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
+            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+            // Display correct message about femtosat operation
+            femtosatStatusDisplay(rxPacket.payload[0], rxPacket.payload[1], femtoAddr);
+
+            //Exit loop now that data has been received from CubeSat.
+            ackFlag = false;
+        }
+        else if (result == EasyLink_Status_Rx_Timeout)
+        {
+            // Set LED2 and clear LED1 to indicate RX Timeout
+            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+            Display_printf(display, 0, 0,
+                           "Device timed out before data received from CubeSat.\n");
+            // Stay in loop until data is received from CubeSat
+            ackFlag = true;
+        }
+        else
+        {
+            // Set both LED1 and LED2 to indicate error
+            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
+            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
+            Display_printf(display, 0, 0,
+                           "RX error.\n");
+            // Stay in loop until data has been received from CubeSat
+            ackFlag = true;
+        }
+        // Keep track of the number of times RX has been attempted
+        count++;
+    }
+}
+
+
+void *mainThread(void *arg0)
+{
     // Setup display driver
     displaySetup();
     Display_printf(display, 0, 0, "Starting ground station...\n");
 
-    // Initialise the EasyLink parameters to their default values
-    EasyLink_Params easyLink_params;
-    EasyLink_Params_init(&easyLink_params);
-
-    /*
-     * Initialise EasyLink with the settings found in easylink_config.h
-     * Modify EASYLINK_PARAM_CONFIG in easylink_config.h to change the default
-     * PHY
-     */
-    if (EasyLink_init(&easyLink_params) != EasyLink_Status_Success)
-    {
-        while(1);
-    }
-
-    /*
-     * If you wish to use a frequency other than the default (e.g. 433MHz), use
-     * the following API:
-     * EasyLink_setFrequency(433000000);
-     */
-
-    /* Enter infinite loop which initialises packets and performs all of the
+    /* Enter infinite loop which performs all of the
      * necessary RF commands.
      * If the user wishes to only send a command(s) to the femtosat once,
      * this while(1) can be removed.
@@ -287,50 +485,10 @@ void *mainThread(void *arg0)
      * the CubeSat, they can simply press the reset button on the board to
      * resend the command(s).
      */
+    rfPacketSetup();
 
     while(1)
     {
-        // Create the packet being sent to the CubeSat
-
-        // The 0th byte must contain the femtosat address
-        txPacket.payload[0] = FEMTO_ADDRESS;
-        // The next byte tells the femtosat how many commands it must perform
-        txPacket.payload[1] = NUMBER_OF_COMMANDS;
-        // Fill the next byte with the quaternion command
-        txPacket.payload[2] = COMMAND_ONE;
-        /* How long for the CubeSat to be in standby mode until
-         * the next instruction
-         */
-        txPacket.payload[3] = SLEEP_TIME;
-        // Fill TX packet with quaternion data
-        for (i = 4; i < 20; i++)
-        {
-            txPacket.payload[i] = quatTx[i-4];
-        }
-        /* If more commands are to be completed after the quaternion command,
-         * they are initialised here
-         */
-        txPacket.payload[20] = COMMAND_TWO;
-        txPacket.payload[21] = SLEEP_TIME;
-        txPacket.payload[22] = COMMAND_THREE;
-        txPacket.payload[23] = SLEEP_TIME;
-        // Fill the rest of the packet with 0s
-        for(i = 24; i < PAYLOAD_LENGTH; i++)
-        {
-            txPacket.payload[i] = 0;
-        }
-
-        txPacket.len = PAYLOAD_LENGTH;
-
-        txPacket.dstAddr[0] = CUBESAT_ADDRESS;
-
-        // Set Tx absolute time to current time.
-        if(EasyLink_getAbsTime(&absTime) != EasyLink_Status_Success)
-        {
-            // Problem getting absolute time
-        }
-
-        txPacket.absTime = absTime;
 
         /*************************************************************************
          *                                                                       *
@@ -338,31 +496,7 @@ void *mainThread(void *arg0)
          *                   Send command(s) to CubeSat                          *
          *                                                                       *
          *************************************************************************/
-
-        EasyLink_Status result = EasyLink_transmit(&txPacket);
-
-        // TX to CubeSat was successful
-        if (result == EasyLink_Status_Success)
-        {
-            // Toggle LED1 to indicate TX
-            PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
-            // Turn LED2 off, in case there was a prior error
-            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-            Display_printf(display, 0, 0, "Ground station TX successful.\n");
-        }
-        //TX to CubeSat failed
-        else
-        {
-            /* Set both LED1 and LED2 to indicate error */
-            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-            Display_printf(display, 0, 0, "Ground station TX error.\n");
-        }
-
-        // Switch to RX mode immediately
-        rxPacket.absTime = 0;
-        // Set a timeout interval of 500ms
-        rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
+        cubeSatTx();
 
         /*************************************************************************
          *                                                                       *
@@ -370,102 +504,15 @@ void *mainThread(void *arg0)
          *                      Receive ack from CubeSat                         *
          *                                                                       *
          *************************************************************************/
-        result = EasyLink_receive(&rxPacket);
+        bool ackFlag = cubeSatAckRx();
 
-        /* Flag indicating that ack has been received from CubeSat.
-         * When raised, data can be received.
-         * When held low, ground station must retransmit data to CubeSat.
-         */
-        bool ackFlag;
+        /*************************************************************************
+         *                                                                       *
+         *                               RX MODE<--------------------------------*
+         *                      Receive data from CubeSat                        *
+         *                                                                       *
+         *************************************************************************/
+        dataRx();
 
-        /* Check Received packet against what was sent, it should be identical
-         * to the transmitted packet
-         */
-        if(result == EasyLink_Status_Success &&
-                isPacketCorrect(&rxPacket, &txPacket))
-        {
-            /* Toggle LED1, clear LED2 to indicate Echo RX */
-            PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
-            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-            Display_printf(display, 0, 0, "Ack received from CubeSat.\n");
-            ackFlag = true;
-        }
-        else if(result == EasyLink_Status_Rx_Timeout)
-        {
-            /* Set LED2 and clear LED1 to indicate Rx Timeout */
-            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-            Display_printf(display, 0, 0,
-                           "Device timed out before ack received from CubeSat.\n");
-            ackFlag = false;
-        }
-        else
-        {
-            /* Set both LED1 and LED2 to indicate error */
-            PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-            PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-            Display_printf(display, 0, 0,
-                           "RX error.\n");
-            ackFlag = false;
-        }
-
-        /* Stay in RX mode until data is received from CubeSat.
-         * Exit loop after a five attempts to restart RF link w/ CubeSat.
-         * If this is not performed, there is a chance that the ground station and
-         * Cubesat get stuck waiting for each other to send data.
-         */
-        uint8_t count = 0;
-        while(ackFlag && (count < 5))
-        {
-            // Restart RX mode and wait for data from CubeSat
-            rxPacket.absTime = 0;
-            // Set timeout interval to 1000ms (1s)
-            rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT * 2);
-
-            /*************************************************************************
-             *                                                                       *
-             *                               RX MODE<--------------------------------*
-             *                      Receive data from CubeSat                        *
-             *                                                                       *
-             *************************************************************************/
-
-            result = EasyLink_receive(&rxPacket);
-            uint8_t femtoAddr = FEMTO_ADDRESS;
-
-            // No need to check the packet since this is a data transmission
-            if (result == EasyLink_Status_Success)
-            {
-                // Toggle LED1, clear LED2 to indicate Echo RX
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-                // Display correct message about femtosat operation
-                femtosatStatusDisplay(rxPacket.payload[0], rxPacket.payload[1], femtoAddr);
-
-                //Exit loop now that data has been received from CubeSat.
-                ackFlag = false;
-            }
-            else if (result == EasyLink_Status_Rx_Timeout)
-            {
-                // Set LED2 and clear LED1 to indicate RX Timeout
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-                Display_printf(display, 0, 0,
-                               "Device timed out before data received from CubeSat.\n");
-                // Stay in loop until data is received from CubeSat.
-                ackFlag = true;
-            }
-            else
-            {
-                // Set both LED1 and LED2 to indicate error
-                PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
-                PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
-                Display_printf(display, 0, 0,
-                               "RX error.\n");
-                // Stay in loop until data has been received from CubeSat
-                ackFlag = true;
-            }
-            // Keep track of the number of times RX has been attempted
-            count++;
-        }
     }
 }
