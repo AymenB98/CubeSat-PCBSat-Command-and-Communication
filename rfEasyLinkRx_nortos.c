@@ -31,6 +31,12 @@
  */
 
 /*
+ * This version of the code was created by Aymen Benylles by adapting TI examples.
+ * This code is for the ground station, and sends commands to the CubeSat.
+ *
+ */
+
+/*
  *  ======== rfEasyLinkEchoRx_nortos.c ========
  */
 /* Standard C Libraries */
