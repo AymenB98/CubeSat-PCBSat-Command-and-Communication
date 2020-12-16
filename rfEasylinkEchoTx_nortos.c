@@ -51,6 +51,7 @@
 #include <ti/drivers/timer/GPTimerCC26XX.h>
 #include <ti/display/Display.h>
 #include <ti/devices/DeviceFamily.h>
+#include <unistd.h>
 
 // Driverlib APIs
 #include DeviceFamily_constructPath(driverlib/sys_ctrl.h)
@@ -102,16 +103,24 @@ EasyLink_Status result;
 
 // Function prototypes
 static void displaySetup();
+static void timerSetup();
+static void timerStart();
+static void timerEnd();
 static void rfPacketSetup();
 static void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte, uint8_t femtoAddr);
 static void cubeSatTx();
 static bool cubeSatAckRx();
 static void dataRx(bool ackFlag);
 
-// Pin driver handle
+// Driver handles
 static PIN_Handle pinHandle;
 static PIN_State pinState;
 static Display_Handle display;
+static GPTimerCC26XX_Handle timerHandle;
+
+// Timer parameters
+static GPTimerCC26XX_Params timerParams;
+static GPTimerCC26XX_Value timerValue;
 
 /*
  * Application LED pin configuration table:
@@ -139,6 +148,43 @@ static void displaySetup()
     {
         /* Failed to open display driver */
         while (1);
+    }
+}
+
+static void timerSetup()
+{
+    GPTimerCC26XX_Params_init(&timerParams);
+    timerParams.width = GPT_CONFIG_32BIT;
+    timerParams.direction = GPTimerCC26XX_DIRECTION_UP;
+    timerParams.debugStallMode = GPTimerCC26XX_DEBUG_STALL_OFF;
+
+    timerHandle = GPTimerCC26XX_open(GPT_A, &timerParams);
+    if(timerHandle == NULL)
+    {
+        Display_printf(display, 0, 0, "Error opening GP Timer.\n");
+    }
+}
+
+static void timerStart()
+{
+    GPTimerCC26XX_start(timerHandle);
+    if(timerHandle == NULL)
+    {
+        Display_printf(display, 0, 0, "Error starting GP Timer.\n");
+    }
+}
+
+static void timerEnd()
+{
+    timerValue = GPTimerCC26XX_getValue(timerHandle);
+    double clockFreq = 48000000;
+    float timerValueSeconds = timerValue / clockFreq;
+    Display_printf(display, 0, 0, "Timer value: %f s \n", timerValueSeconds);
+    GPTimerCC26XX_stop(timerHandle);
+    GPTimerCC26XX_close(timerHandle);
+    if(timerHandle == NULL)
+    {
+        Display_printf(display, 0, 0, "Failed to halt GP Timer.\n");
     }
 }
 
@@ -205,8 +251,8 @@ static void rfPacketSetup()
     }
 
     // Clear LEDs
-    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+//    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+//    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
 
     /*
      * Initialise EasyLink with the settings found in easylink_config.h
@@ -344,10 +390,10 @@ static void cubeSatTx()
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
         Display_printf(display, 0, 0, "Ground station TX successful.\n");
     }
-    //TX to CubeSat failed
+    // TX to CubeSat failed
     else
     {
-        /* Set both LED1 and LED2 to indicate error */
+        // Set both LED1 and LED2 to indicate error
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
         Display_printf(display, 0, 0, "Ground station TX error.\n");
@@ -381,7 +427,7 @@ static bool cubeSatAckRx()
     if(result == EasyLink_Status_Success &&
             isPacketCorrect(&rxPacket, &txPacket))
     {
-        /* Toggle LED1, clear LED2 to indicate Echo RX */
+        // Toggle LED1, clear LED2 to indicate Echo RX
         PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
         Display_printf(display, 0, 0, "Ack received from CubeSat.\n");
@@ -389,7 +435,7 @@ static bool cubeSatAckRx()
     }
     else if(result == EasyLink_Status_Rx_Timeout)
     {
-        /* Set LED2 and clear LED1 to indicate Rx Timeout */
+        // Set LED2 and clear LED1 to indicate Rx Timeout
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
         Display_printf(display, 0, 0,
@@ -398,7 +444,7 @@ static bool cubeSatAckRx()
     }
     else
     {
-        /* Set both LED1 and LED2 to indicate error */
+        // Set both LED1 and LED2 to indicate error
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
         Display_printf(display, 0, 0, "RX error.\n");
@@ -474,7 +520,9 @@ void *mainThread(void *arg0)
 {
     // Setup display driver
     displaySetup();
+    timerSetup();
     Display_printf(display, 0, 0, "Starting ground station...\n");
+    rfPacketSetup();
 
     /* Enter infinite loop which performs all of the
      * necessary RF commands.
@@ -484,10 +532,10 @@ void *mainThread(void *arg0)
      * the CubeSat, they can simply press the reset button on the board to
      * resend the command(s).
      */
-    rfPacketSetup();
 
     while(1)
     {
+        timerStart();
 
         /*************************************************************************
          *                                                                       *
@@ -512,6 +560,8 @@ void *mainThread(void *arg0)
          *                                                                       *
          *************************************************************************/
         dataRx(ackFlag);
+//        sleep(10);
 
+        timerEnd();
     }
 }
