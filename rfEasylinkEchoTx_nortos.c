@@ -30,17 +30,18 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-/*
- * This version of the code was created by Aymen Benylles by adapting TI examples.
- * This code is for the ground station, and sends commands to the CubeSat.
+/** ============================================================================
+ *  @file       rfEasyLinkTx_nortos.c
  *
+ *  @brief      Source file that allows communication between ground station
+ *  and CubeSat.
+ *
+ *  @author     Aymen Benylles
+ *  @date       18/12/2020
+ *
+ *  ============================================================================
  */
 
-
-/*
- *  ======== rfEasyLinkEchoTx_nortos.c ========
- */
  // Standard C Libraries
 #include <stdlib.h>
 
@@ -51,6 +52,7 @@
 #include <ti/drivers/timer/GPTimerCC26XX.h>
 #include <ti/display/Display.h>
 #include <ti/devices/DeviceFamily.h>
+#include <unistd.h>
 
 // Driverlib APIs
 #include DeviceFamily_constructPath(driverlib/sys_ctrl.h)
@@ -64,54 +66,51 @@
 // EasyLink API Header files
 #include "easylink/EasyLink.h"
 
+#include "rfEasyLinkEchoTx_nortos.h"
+
 // Define macros for constants used throughout code
 
-// Number of data bytes being transmitted/received
-#define PAYLOAD_LENGTH   30
-//Time (ms) until RX operations timeout
-#define RX_TIMEOUT   500
+#define PAYLOAD_LENGTH   30 /*!< Number of data bytes being transmitted/received */
 
-// CubeSat address used for address filtering
-#define CUBESAT_ADDRESS     0xCC
-/* Femtosat address that CubeSat will use
- * to send data to femtosat
- */
-#define FEMTO_ADDRESS      0xBB
+#define RX_TIMEOUT   500 /*!< Time (ms) until RX operations timeout */
 
-// The number of commands to be performed by femtosat
-#define NUMBER_OF_COMMANDS      3
+#define CUBESAT_ADDRESS     0xCC /*!< CubeSat address used for address filtering */
+
+#define FEMTO_ADDRESS      0xBB /*!< Femtosat address that CubeSat will use to select correct femtosat */
+
+#define NUMBER_OF_COMMANDS      3 /*!< The number of commands to be performed by femtosat */
+
+#define TIMING_TEST     0 /*!< Change to 1 when timing of code is to be performed */
+
 // Define the command ID for each command
-#define COMMAND_ONE     0x1
-#define COMMAND_TWO     0x2
-#define COMMAND_THREE   0x3
+#define COMMAND_ONE     0x1 /*!< Display quaternion sent from ground station to femtosat */
+#define COMMAND_TWO     0x2 /*!< Set green LED high for two seconds */
+#define COMMAND_THREE   0x3 /*!< Empty command */
+
 /* Time (s) the femtosat will be placed in
  * standby mode before it moves onto the next command
  */
-#define SLEEP_TIME      0
+#define SLEEP_TIME      0 /*!< Time (s) femtosat will be placed in standby mode until it moves
+                            onto the next command */
 
-// Initialise the EasyLink parameters to their default values
-EasyLink_Params easyLink_params;
+EasyLink_Params easyLinkParams;
 
-// Variable the RF core uses to time commands
-uint32_t absTime;
+uint32_t absTime; /*!< Variable the RF core uses to time commands */
 
-EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
-EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
+EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}}; /*!< Packet transmitted to CubeSat */
+EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}}; /*!< Packet received from CubeSat */
 
-EasyLink_Status result;
+EasyLink_Status result; /*!< Status of each RF command */
 
-// Function prototypes
-static void displaySetup();
-static void rfPacketSetup();
-static void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte, uint8_t femtoAddr);
-static void cubeSatTx();
-static bool cubeSatAckRx();
-static void dataRx(bool ackFlag);
-
-// Pin driver handle
+// Driver handles
 static PIN_Handle pinHandle;
 static PIN_State pinState;
 static Display_Handle display;
+static GPTimerCC26XX_Handle timerHandle;
+
+// Timer parameters
+static GPTimerCC26XX_Params timerParams;
+static GPTimerCC26XX_Value timerValue;
 
 /*
  * Application LED pin configuration table:
@@ -129,7 +128,7 @@ PIN_Config pinTable[] = {
  *  @return none
  *
  */
-static void displaySetup()
+void displaySetup()
 {
     Display_init();
 
@@ -143,15 +142,72 @@ static void displaySetup()
 }
 
 /**
+ *  @brief  Setup GP timer
+ *
+ *  @return none
+ *
+ */
+void timerSetup()
+{
+    GPTimerCC26XX_Params_init(&timerParams);
+    timerParams.width = GPT_CONFIG_32BIT;
+    timerParams.direction = GPTimerCC26XX_DIRECTION_UP;
+    timerParams.debugStallMode = GPTimerCC26XX_DEBUG_STALL_OFF;
+
+    timerHandle = GPTimerCC26XX_open(Board_GPTIMER0A, &timerParams);
+    if(timerHandle == NULL)
+    {
+        Display_printf(display, 0, 0, "Error opening GP Timer.\n");
+    }
+}
+
+/**
+ *  @brief  Start the timer
+ *
+ *  @return none
+ *
+ */
+void timerStart()
+{
+    GPTimerCC26XX_start(timerHandle);
+    if(timerHandle == NULL)
+    {
+        Display_printf(display, 0, 0, "Error starting GP Timer.\n");
+    }
+}
+
+/**
+ *  @brief  Stop the timer and close the driver
+ *  This also displays the timer value in milliseconds.
+ *
+ *  @return none
+ *
+ */
+void timerEnd()
+{
+    timerValue = GPTimerCC26XX_getValue(timerHandle);
+    double clockFreq = 48000000;
+    float timerValueSeconds = timerValue / clockFreq;
+    float timerValueMs = timerValueSeconds * 1000;
+    Display_printf(display, 0, 0, "Timer value: %fms \n", timerValueMs);
+    GPTimerCC26XX_stop(timerHandle);
+    GPTimerCC26XX_close(timerHandle);
+    if(timerHandle == NULL)
+    {
+        Display_printf(display, 0, 0, "Failed to halt GP Timer.\n");
+    }
+}
+
+/**
  *  @brief  Setup packet to be sent to CubeSat
  *
  *  @return none
  *
  */
-static void rfPacketSetup()
+void rfPacketSetup()
 {
     // Initialise variables for RF operations
-    EasyLink_Params_init(&easyLink_params);
+    EasyLink_Params_init(&easyLinkParams);
 
     // Set up desired quaternion to be sent to femtosat
     float quatFloat[4] = {-1000.0, 2.0, 3.0, -4.0};
@@ -205,15 +261,15 @@ static void rfPacketSetup()
     }
 
     // Clear LEDs
-    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+//    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+//    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
 
     /*
      * Initialise EasyLink with the settings found in easylink_config.h
      * Modify EASYLINK_PARAM_CONFIG in easylink_config.h to change the default
      * PHY
      */
-    if (EasyLink_init(&easyLink_params) != EasyLink_Status_Success)
+    if (EasyLink_init(&easyLinkParams) != EasyLink_Status_Success)
     {
         while(1);
     }
@@ -294,7 +350,7 @@ bool isPacketCorrect(EasyLink_RxPacket *rxp, EasyLink_TxPacket *txp)
  *  @return none
  *
  */
-static void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte, uint8_t femtoAddr)
+void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte, uint8_t femtoAddr)
 {
     Display_printf(display, 0, 0, "0x%x femtosat reception status: ", femtoAddr);
     switch(statusByte)
@@ -322,7 +378,7 @@ static void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte, uint8_t
  *  @return none
  *
  */
-static void cubeSatTx()
+void cubeSatTx()
 {
 
     // Set Tx absolute time to current time
@@ -344,10 +400,10 @@ static void cubeSatTx()
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
         Display_printf(display, 0, 0, "Ground station TX successful.\n");
     }
-    //TX to CubeSat failed
+    // TX to CubeSat failed
     else
     {
-        /* Set both LED1 and LED2 to indicate error */
+        // Set both LED1 and LED2 to indicate error
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
         Display_printf(display, 0, 0, "Ground station TX error.\n");
@@ -360,7 +416,7 @@ static void cubeSatTx()
  *  @return ackFlag
  *
  */
-static bool cubeSatAckRx()
+bool cubeSatAckRx()
 {
 
     /* Flag indicating that ack has been received from CubeSat.
@@ -381,7 +437,7 @@ static bool cubeSatAckRx()
     if(result == EasyLink_Status_Success &&
             isPacketCorrect(&rxPacket, &txPacket))
     {
-        /* Toggle LED1, clear LED2 to indicate Echo RX */
+        // Toggle LED1, clear LED2 to indicate Echo RX
         PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
         Display_printf(display, 0, 0, "Ack received from CubeSat.\n");
@@ -389,7 +445,7 @@ static bool cubeSatAckRx()
     }
     else if(result == EasyLink_Status_Rx_Timeout)
     {
-        /* Set LED2 and clear LED1 to indicate Rx Timeout */
+        // Set LED2 and clear LED1 to indicate Rx Timeout
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
         Display_printf(display, 0, 0,
@@ -398,7 +454,7 @@ static bool cubeSatAckRx()
     }
     else
     {
-        /* Set both LED1 and LED2 to indicate error */
+        // Set both LED1 and LED2 to indicate error
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 1);
         Display_printf(display, 0, 0, "RX error.\n");
@@ -414,7 +470,7 @@ static bool cubeSatAckRx()
  *  @return none
  *
  */
-static void dataRx(bool ackFlag)
+void dataRx(bool ackFlag)
 {
     /* Stay in RX mode until data is received from CubeSat.
      * Exit loop after a five attempts to restart RF link w/ CubeSat.
@@ -474,7 +530,14 @@ void *mainThread(void *arg0)
 {
     // Setup display driver
     displaySetup();
+
+#if TIMING_TEST
+    // Setup the GP timer
+    timerSetup();
+#endif
+
     Display_printf(display, 0, 0, "Starting ground station...\n");
+    rfPacketSetup();
 
     /* Enter infinite loop which performs all of the
      * necessary RF commands.
@@ -484,10 +547,14 @@ void *mainThread(void *arg0)
      * the CubeSat, they can simply press the reset button on the board to
      * resend the command(s).
      */
-    rfPacketSetup();
 
     while(1)
     {
+
+#if TIMING_TEST
+        // Start the GP timer
+        timerStart();
+#endif
 
         /*************************************************************************
          *                                                                       *
@@ -512,6 +579,11 @@ void *mainThread(void *arg0)
          *                                                                       *
          *************************************************************************/
         dataRx(ackFlag);
+
+#if TIMING_TEST
+        // Stop the timer, display the value and close the driver
+        timerEnd();
+#endif
 
     }
 }
