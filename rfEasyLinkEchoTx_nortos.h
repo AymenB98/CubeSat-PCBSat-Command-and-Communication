@@ -1,7 +1,7 @@
 /** ============================================================================
  *  @file       rfEasyLinkTx_nortos.h
  *
- *  @brief      CC1310 LaunchPad Board Specific header file.
+ *  @brief      Header file for ground station CC1310
  *
  *  The rfEasyLinkTx_nortos.h header file should be included in an application as
  *  follows:

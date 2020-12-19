@@ -30,21 +30,23 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * This version of the code was created by Aymen Benylles by adapting TI examples.
- * This code is for the ground station, and sends commands to the CubeSat.
+/** ============================================================================
+ *  @file       rfEasyLinkRx_nortos.c
  *
+ *  @brief      Source file for CubeSat
+ *
+ *  @author     Aymen Benylles
+ *  @date       19/12/2020
+ *
+ *  ============================================================================
  */
 
-/*
- *  ======== rfEasyLinkEchoRx_nortos.c ========
- */
-/* Standard C Libraries */
+// Standard C Libraries
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-/* TI Drivers */
+// TI Drivers
 #include <ti/drivers/rf/RF.h>
 #include <ti/drivers/PIN.h>
 #include <ti/drivers/Power.h>
@@ -54,68 +56,55 @@
 #include <ti/devices/DeviceFamily.h>
 #include DeviceFamily_constructPath(driverlib/interrupt.h)
 
-/* Board Header files */
+// Board Header files
 #include "Board.h"
 
-/* Application Header files */
+// Application Header files
 #include "smartrf_settings/smartrf_settings.h"
 
-/* EasyLink API Header files */
+// EasyLink API Header files
 #include "easylink/EasyLink.h"
 
-#define RFEASYLINKECHO_PAYLOAD_LENGTH   30
+#include "rfEasyLinkRx_nortos.h"
 
-#define GROUND_ADDRESS    0xFF
+#define PAYLOAD_LENGTH   30 /*!< Length of payload in bytes */
 
-//Set RX to timeout after 0.5s(500ms)
-#define RX_TIMEOUT  500
+#define GROUND_ADDRESS    0xFF /*!< Ground station address for address filtering */
 
-/* Buffer size used for the file copy process */
-#define BUFFSIZE 1024
+// Set RX to timeout after 0.5s(500ms)
+#define RX_TIMEOUT  500 /*!< RX command times out after 500ms */
 
- /* Starting sector to write/read to */
-#define STARTINGSECTOR 0
+// Buffer size used for the file copy process
+#define BUFFSIZE 1024 /*!< Buffer size for microSD operations */
 
-#define BYTESPERKILOBYTE 1024
+// Starting sector to write/read to
+#define STARTINGSECTOR 0 /*!< Starting sector to write to/read from */
 
-/*
- * Set this constant to 1 in order to write to the SD card.
- * WARNING: Running this example with WRITEENABLE set to 1 will cause
+#define BYTESPERKILOBYTE 1024 /*!< Bytes in a kilobyte */
+
+/* WARNING: Running this example with WRITEENABLE set to 1 will cause
  * any file system present on the SD card to be corrupted!
  */
-#define WRITEENABLE 1
-
-//Function prototypes
-static void driverSetup();
-static bool sdSetup(int8_t rssi, uint8_t errorCode);
-static bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure);
-static void commandRx();
-static void groundStationAckTx();
-static void commandTx();
-static void femtosatAckRx();
-static void dataTx();
-bool isPacketCorrect(EasyLink_RxPacket *rxp, EasyLink_TxPacket *txp);
+#define WRITEENABLE 1 /*!< Enable/disable writing to microSD without file system */
 
 // Driver handles
-static PIN_Handle pinHandle;
-static PIN_State pinState;
-static Display_Handle display;
-SD_Handle sdHandle;
+static PIN_Handle pinHandle; /*!< Handle for pin driver */
+static PIN_State pinState; /*!< Used for GPIO commands */
+static Display_Handle display; /*!< Handle for UART display driver */
+SD_Handle sdHandle; /*!< Handle for SD driver */
 
 // SD variables
-unsigned char sdPacket[BUFFSIZE];
-unsigned char cpyBuff[BUFFSIZE];
+unsigned char sdPacket[BUFFSIZE]; /*!< Packet to be stored in microSD card */
+unsigned char cpyBuff[BUFFSIZE]; /*!< Buffer used to check the success of microSD operation */
 
+EasyLink_Params easyLinkParams; /*!< Use this to initialise EasyLink parameters to their default values */
 
-//Initialise the EasyLink parameters to their default values
-EasyLink_Params easyLink_params;
-
-//RF variables
+// RF variables
 EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
 EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
-uint32_t absTime;
-EasyLink_Status result;
-static bool bBlockTransmit = false;
+uint32_t absTime;/*!< Used by RF core to time RF commands */
+EasyLink_Status result; /*!< Status of RF command */
+static bool bBlockTransmit = false; /*!< Flag raised when TX command is to be blocked */
 
 /*
  * Application LED pin configuration table:
@@ -133,7 +122,7 @@ PIN_Config pinTable[] = {
  *  @return none
  *
  */
-static void driverSetup()
+void driverSetup()
 {
     /* Open LED pins */
     pinHandle = PIN_open(&pinState, pinTable);
@@ -168,7 +157,7 @@ static void driverSetup()
  *  @return sdOpFlag    Flag raised when microSD op fails.
  *
  */
-static bool sdSetup(int8_t rssi, uint8_t errorCode)
+bool sdSetup(int8_t rssi, uint8_t errorCode)
 {
     int_fast8_t result;
     //Flag raised in the even of an SD operation failure.
@@ -218,7 +207,7 @@ static bool sdSetup(int8_t rssi, uint8_t errorCode)
  *  @return sdFlag      Flag raised in the event of microSD failure.
  *
  */
-static bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure)
+bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure)
 {
     uint_fast32_t sectorSize;
     uint_fast32_t sectors;
@@ -247,7 +236,7 @@ static bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure)
         sdFailure = 1;
     }
 
-    /* Compare data read from the SD card with expected values */
+    // Compare data read from the SD card with expected values
     int i;
     for (i = 0; i < BUFFSIZE; i++)
     {
@@ -283,7 +272,7 @@ static bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure)
  *  @return none
  *
  */
-static void commandRx()
+void commandRx()
 {
     rxPacket.absTime = 0;
     rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT * 3);
@@ -328,9 +317,9 @@ static void commandRx()
  *  @return none
  *
  */
-static void groundStationAckTx()
+void groundStationAckTx()
 {
-    txPacket.len = RFEASYLINKECHO_PAYLOAD_LENGTH;
+    txPacket.len = PAYLOAD_LENGTH;
 
     // Send packet back to ground station for ack
     txPacket.dstAddr[0] = GROUND_ADDRESS;
@@ -366,7 +355,7 @@ static void groundStationAckTx()
  *  @return none
  *
  */
-static void commandTx()
+void commandTx()
 {
     // Now that ack has been sent, relay data to femtosat
     txPacket.dstAddr[0] = txPacket.payload[0];
@@ -393,7 +382,7 @@ static void commandTx()
  *  @return none
  *
  */
-static void femtosatAckRx()
+void femtosatAckRx()
 {
     // Switch to Receiver, set a timeout interval of 500ms */
     rxPacket.absTime = 0;
@@ -468,7 +457,7 @@ static void femtosatAckRx()
  *  @return none
  *
  */
-static void dataTx()
+void dataTx()
 {
     result = EasyLink_transmit(&txPacket);
     if (result == EasyLink_Status_Success)
@@ -516,14 +505,14 @@ bool isPacketCorrect(EasyLink_RxPacket *rxp, EasyLink_TxPacket *txp)
 void *mainThread(void *arg0)
 {
     driverSetup();
-    EasyLink_Params_init(&easyLink_params);
+    EasyLink_Params_init(&easyLinkParams);
 
     /*
      * Initialise EasyLink with the settings found in easylink_config.h
      * Modify EASYLINK_PARAM_CONFIG in easylink_config.h to change the default
      * PHY
      */
-    if (EasyLink_init(&easyLink_params) != EasyLink_Status_Success)
+    if (EasyLink_init(&easyLinkParams) != EasyLink_Status_Success)
     {
         while(1);
     }

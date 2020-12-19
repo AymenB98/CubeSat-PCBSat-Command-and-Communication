@@ -30,16 +30,17 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * This version of the code was created by Aymen Benylles by adapting TI examples.
- * This code is for the ground station, and sends commands to the CubeSat.
+/** ============================================================================
+ *  @file       rfEasyLinkRxBB_nortos.c
  *
+ *  @brief      Source file for femtosatellite
+ *
+ *  @author     Aymen Benylles
+ *  @date       19/12/2020
+ *
+ *  ============================================================================
  */
 
-
-/*
- *  ======== rfEasyLinkEchoRx_nortos.c ========
- */
 /* Standard C Libraries */
 #include <stdlib.h>
 #include <stdbool.h>
@@ -64,37 +65,24 @@
 /* EasyLink API Header files */
 #include "easylink/EasyLink.h"
 
-/* Undefine to not use async mode */
-//#define RFEASYLINKECHO_ASYNC
+#include "rfEasyLinkRxBB_nortos.h"
 
-#define RFEASYLINKECHO_PAYLOAD_LENGTH     30
+#define PAYLOAD_LENGTH     30 /*!< Length of payload in bytes */
 
-#define CUBESAT_ADDRESS  0xCC
+#define CUBESAT_ADDRESS  0xCC /*!< CubeSat address for address filtering */
 
-#define BUFF_SIZE   1024
-
-static void ledSetup();
-static void displaySetup();
-static void commandRx();
-static void ackTx();
-static void dummyCommand(uint8_t commandID, uint8_t rxPacket[30], uint8_t sleepTime);
-static void displayQuat(uint8_t rxPacket[30]);
-
-/* Pin driver handle */
-static PIN_Handle pinHandle;
-static PIN_State pinState;
-static Display_Handle display;
+static PIN_Handle pinHandle; /*!< Handle for pin driver */
+static PIN_State pinState; /*!< Pin state variable for GPIO operations */
+static Display_Handle display; /*!< Handle for driver display */
 
 // Initialise the EasyLink parameters to their default values
-EasyLink_Params easyLink_params;
-EasyLink_Status result;
+EasyLink_Params easyLinkParams; /*!< Variable used to initialise EasyLink parameters */
+EasyLink_Status result; /*!< Status of each RF command */
 
-// RF variables
-uint32_t absTime;
-static bool bBlockTransmit = false;
-EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
-EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
-
+uint32_t absTime; /*!< RF core uses this to time RF commands */
+static bool bBlockTransmit = false; /*!< Flag used to block transmission */
+EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}}; /*!< RX packet */
+EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}}; /*!< TX packet */
 
 /*
  * Application LED pin configuration table:
@@ -106,7 +94,13 @@ PIN_Config pinTable[] = {
     PIN_TERMINATE
 };
 
-static void ledSetup()
+/**
+ *  @brief  Setup LED driver
+ *
+ *  @return none
+ *
+ */
+void ledSetup()
 {
     // Open LED pins
     pinHandle = PIN_open(&pinState, pinTable);
@@ -119,13 +113,14 @@ static void ledSetup()
     PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
     PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
 }
+
 /**
- *  @brief  Setup display driver.
+ *  @brief  Setup display driver
  *
  *  @return none
  *
  */
-static void displaySetup()
+void displaySetup()
 {
     Display_init();
 
@@ -138,7 +133,13 @@ static void displaySetup()
     }
 }
 
-static void commandRx()
+/**
+ *  @brief  Receive command(s) from CubeSat
+ *
+ *  @return none
+ *
+ */
+void commandRx()
 {
     rxPacket.absTime = 0;
     EasyLink_receive(&rxPacket);
@@ -164,12 +165,18 @@ static void commandRx()
     }
 }
 
-static void ackTx()
+/**
+ *  @brief  Send acknowledgement to CubeSat
+ *
+ *  @return none
+ *
+ */
+void ackTx()
 {
     /* Switch to transmitter and echo the packet if transmission
      * is not blocked
      */
-    txPacket.len = RFEASYLINKECHO_PAYLOAD_LENGTH;
+    txPacket.len = PAYLOAD_LENGTH;
 
     /*
      * Address filtering is enabled by default on the Rx device with the
@@ -223,7 +230,7 @@ static void ackTx()
             count = 1;
 
             // Perform commands after quat then set quatFlag low again
-            for(i = 20; i < RFEASYLINKECHO_PAYLOAD_LENGTH; i++)
+            for(i = 20; i < PAYLOAD_LENGTH; i++)
             {
                 // Command IDs will be on odd numbers (elements of the array)
                 // No need to loop through whole array if commands are finished
@@ -253,7 +260,7 @@ static void ackTx()
  *  @return none
  *
  */
-static void dummyCommand(uint8_t commandID, uint8_t rxPacket[30], uint8_t sleepTime)
+void dummyCommand(uint8_t commandID, uint8_t rxPacket[30], uint8_t sleepTime)
 {
     switch(commandID)
     {
@@ -288,7 +295,7 @@ static void dummyCommand(uint8_t commandID, uint8_t rxPacket[30], uint8_t sleepT
  *  @return none
  *
  */
-static void displayQuat(uint8_t rxPacket[30])
+void displayQuat(uint8_t rxPacket[30])
 {
     uint8_t i, quatRx[16];
     int quatInt[4];
@@ -324,8 +331,8 @@ void *mainThread(void *arg0)
      * Modify EASYLINK_PARAM_CONFIG in easylink_config.h to change the default
      * PHY
      */
-    EasyLink_Params_init(&easyLink_params);
-    if(EasyLink_init(&easyLink_params) != EasyLink_Status_Success)
+    EasyLink_Params_init(&easyLinkParams);
+    if(EasyLink_init(&easyLinkParams) != EasyLink_Status_Success)
     {
         while(1);
     }
