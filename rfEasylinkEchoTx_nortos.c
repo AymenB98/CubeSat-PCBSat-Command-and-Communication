@@ -37,12 +37,13 @@
  *  and CubeSat.
  *
  *  @author     Aymen Benylles
- *  @date       18/12/2020
+ *  @date       30/12/2020
  *
  *  ============================================================================
  */
 
  // Standard C Libraries
+#include <stdio.h>
 #include <stdlib.h>
 
 /* TI-RTOS Header files */
@@ -52,6 +53,7 @@
 #include <ti/drivers/timer/GPTimerCC26XX.h>
 #include <ti/display/Display.h>
 #include <ti/devices/DeviceFamily.h>
+#include <ti/drivers/UART.h>
 #include <unistd.h>
 
 // Driverlib APIs
@@ -68,6 +70,7 @@
 
 #include "rfEasyLinkEchoTx_nortos.h"
 
+
 // Define macros for constants used throughout code
 
 #define PAYLOAD_LENGTH   30 /*!< Number of data bytes being transmitted/received */
@@ -80,11 +83,11 @@
 
 #define NUMBER_OF_COMMANDS      3 /*!< The number of commands to be performed by femtosat */
 
-#define TIMING_TEST     0 /*!< Change to 1 when timing of code is to be performed */
+#define TIMING_TEST     1 /*!< Change to 1 when timing of code is to be performed */
 
 // Define the command ID for each command
-#define COMMAND_ONE     0x1 /*!< Display quaternion sent from ground station to femtosat */
-#define COMMAND_TWO     0x2 /*!< Set green LED high for two seconds */
+#define COMMAND_QUAT     0x1 /*!< Display quaternion sent from ground station to femtosat */
+#define COMMAND_GLED     0x2 /*!< Set green LED high for two seconds */
 #define COMMAND_THREE   0x3 /*!< Empty command */
 
 /* Time (s) the femtosat will be placed in
@@ -107,6 +110,8 @@ static PIN_Handle pinHandle;
 static PIN_State pinState;
 static Display_Handle display;
 static GPTimerCC26XX_Handle timerHandle;
+static UART_Handle uartHandle;
+static UART_Params uartParams;
 
 // Timer parameters
 static GPTimerCC26XX_Params timerParams;
@@ -142,6 +147,27 @@ void displaySetup()
 }
 
 /**
+ *  @brief  Setup UART display driver
+ *
+ *  @return none
+ *
+ */
+void uartDisplaySetup()
+{
+    UART_init();
+    UART_Params_init(&uartParams);
+    uartParams.writeDataMode = UART_DATA_BINARY;
+    uartParams.readDataMode = UART_DATA_BINARY;
+    uartParams.readReturnMode = UART_RETURN_FULL;
+
+    uartHandle = UART_open(Board_UART0, &uartParams);
+    if(uartHandle == NULL)
+    {
+        while(1);
+    }
+}
+
+/**
  *  @brief  Setup GP timer
  *
  *  @return none
@@ -149,6 +175,7 @@ void displaySetup()
  */
 void timerSetup()
 {
+    char timerError[] = "Error opening GP Timer.\n";
     GPTimerCC26XX_Params_init(&timerParams);
     timerParams.width = GPT_CONFIG_32BIT;
     timerParams.direction = GPTimerCC26XX_DIRECTION_UP;
@@ -157,7 +184,8 @@ void timerSetup()
     timerHandle = GPTimerCC26XX_open(Board_GPTIMER0A, &timerParams);
     if(timerHandle == NULL)
     {
-        Display_printf(display, 0, 0, "Error opening GP Timer.\n");
+        uartWriteSimple(uartHandle, timerError, sizeof(timerError));
+//        Display_printf(display, 0, 0, "Error opening GP Timer.\n");
     }
 }
 
@@ -169,10 +197,12 @@ void timerSetup()
  */
 void timerStart()
 {
+    char timerStartError[] = "Error starting GP Timer.\n";
     GPTimerCC26XX_start(timerHandle);
     if(timerHandle == NULL)
     {
-        Display_printf(display, 0, 0, "Error starting GP Timer.\n");
+        uartWriteSimple(uartHandle, timerStartError, sizeof(timerStartError));
+//        Display_printf(display, 0, 0, "Error starting GP Timer.\n");
     }
 }
 
@@ -199,12 +229,199 @@ void timerEnd()
 }
 
 /**
+ *  @brief  Handle errors in user entry
+ *
+ *  @param userEntry    Character entered by user
+ *  @param entryType    Type of data entered by user
+ *
+ *  @return userErrorFlag   Flag raised when user makes an invalid input
+ *
+ */
+bool inputErrors(char userEntry, char entryType)
+{
+    bool userErrorFlag = false;
+    switch(entryType)
+    {
+    case 'a':
+        if((userEntry > 51) | (userEntry < 49))
+        {
+            Display_printf(display, 0, 0, "Invalid number of commands.\n");
+            Display_printf(display, 0, 0, "Please pick a number between 1 and 3.\n");
+            Display_printf(display, 0, 0, "Restart the device to send command(s).\n");
+            userErrorFlag = true;
+        }
+        break;
+    case 'b':
+        if(userEntry > 57)
+        {
+            Display_printf(display, 0, 0, "Invalid sleep time.\n");
+            Display_printf(display, 0, 0, "Please declare a sleep time between 0 and 9s.\n");
+            Display_printf(display, 0, 0, "Restart the device to send command(s).\n");
+            userErrorFlag = true;
+        }
+        break;
+    case 'c':
+        if(((int)userEntry < 97) | ((int)userEntry > 101))
+        {
+            Display_printf(display, 0, 0, "Invalid femtosat address.\n");
+            Display_printf(display, 0, 0, "Please enter a letter from the list of options.\n");
+            Display_printf(display, 0, 0, "Restart the device to send command(s).\n");
+            userErrorFlag = true;
+        }
+        break;
+    default:
+        break;
+    }
+
+    return userErrorFlag;
+}
+
+/**
+ *  @brief  Perform UART write with error checking
+ *
+ *  @return none
+ *
+ */
+void uartWriteSimple(UART_Handle uartHandle, char *string, int stringSize)
+{
+    UART_write(uartHandle, string, stringSize);
+    if(uartHandle == NULL)
+    {
+        while(1);
+    }
+}
+
+/**
+ *  @brief  Perform UART read with error checking
+ *
+ *  @param  status      Status of read operation
+ *
+ *  @return none
+ *
+ */
+void uartReadSimple(int status)
+{
+    if(status == NULL)
+    {
+        while(1);
+    }
+}
+
+/**
+ *  @brief  Display start-up prompts to user
+ *
+ *  @param *message     Prompt to be displayed to user
+ *  @param messageSize  Size of the prompt
+ *
+ *  @return userEntry   Character entered by user
+ *
+ */
+char userInput(char *message, int messageSize)
+{
+    char userEntry;
+    char newLine[] = "\r\n";
+    // Display prompt
+    uartWriteSimple(uartHandle, message, messageSize);
+    // Read user input and check for an error
+    int uartStatus = UART_read(uartHandle, &userEntry, sizeof(userEntry));
+    uartReadSimple(uartStatus);
+
+    // Display user entry back to user
+    uartWriteSimple(uartHandle, &userEntry, sizeof(userEntry));
+    uartWriteSimple(uartHandle, newLine, sizeof(newLine));
+
+    return userEntry;
+}
+
+/**
+ *  @brief  Process the data entered by the user
+ *
+ *  @return none
+ *
+ */
+void userEntryCompile()
+{
+    // Declare chars for user input
+    char numberOfCommands;
+    char sleepInput;
+    char femtoAddressInput;
+
+    /* Declare uint8_ts that will be sent in the packet.
+     * ASCII conversion will be used to convert char types into numbers.
+     */
+    uint8_t commandNumber;
+    uint8_t sleepTime;
+    uint8_t femtoAddress;
+
+    // Set up user prompts
+    char userCommandMessage[] = "Enter number of commands you wish to send:\r\n";
+    char userSleepMessage[]  = "Enter the sleep time between commands(s):\r\n";
+    char userFemtoAddress[] = "Enter the desired femtosat address:\r\n";
+    char femtoOptions[] = "\r\na: 0xDE\r\nb: 0xBB\r\nc: 0xFE\r\nd: 0xBC\r\ne: 0xCD\r\n";
+
+    // Display prompts to the user and read their input
+    numberOfCommands = userInput(userCommandMessage, sizeof(userCommandMessage));
+    sleepInput = userInput(userSleepMessage, sizeof(userSleepMessage));
+    uartWriteSimple(uartHandle, userFemtoAddress, sizeof(userFemtoAddress));
+    femtoAddressInput = userInput(femtoOptions, sizeof(femtoOptions));
+
+    // Perform ASCII conversion
+    commandNumber = (int)numberOfCommands - 48;
+    sleepTime = (int)sleepInput - 48;
+
+    // Assign femtosat addresses
+    switch(femtoAddressInput)
+    {
+    case 'a':
+        femtoAddress = 0xDE;
+        break;
+    case 'b':
+        femtoAddress = 0xBB;
+        break;
+    case 'c':
+        femtoAddress = 0xFE;
+        break;
+    case 'd':
+        femtoAddress = 0xBC;
+        break;
+    case 'e':
+        femtoAddress = 0xCD;
+        break;
+    default:
+        break;
+    }
+
+    /* Close UART driver before the generic Display driver is opened.
+     * Display driver will not work otherwise.
+     */
+    UART_close(uartHandle);
+
+    // Now that UART driver is closed, setup display driver
+    displaySetup();
+
+    // Flags raised in the event of a user input error
+    bool errorFlagCommands, errorFlagSleep, errorFlagAddress;
+
+    // Test the user inputs to make sure they are valid
+    errorFlagCommands = inputErrors(numberOfCommands, 'a');
+    errorFlagSleep = inputErrors(sleepInput, 'b');
+    errorFlagAddress = inputErrors(femtoAddressInput, 'c');
+
+    // Only continue in the event of all three entries being valid
+    if((!errorFlagCommands) && (!errorFlagSleep) && (!errorFlagAddress))
+    {
+        // Proceed to setup RF packet now that user entries have been checked
+        rfPacketSetup(commandNumber, sleepTime, femtoAddress);
+    }
+}
+
+/**
  *  @brief  Setup packet to be sent to CubeSat
  *
  *  @return none
  *
  */
-void rfPacketSetup()
+void rfPacketSetup(uint8_t commandNumber, uint8_t sleepTime, uint8_t femtoAddress)
 {
     // Initialise variables for RF operations
     EasyLink_Params_init(&easyLinkParams);
@@ -261,8 +478,8 @@ void rfPacketSetup()
     }
 
     // Clear LEDs
-//    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-//    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
+    PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
+    PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
 
     /*
      * Initialise EasyLink with the settings found in easylink_config.h
@@ -283,15 +500,15 @@ void rfPacketSetup()
     // Create the packet being sent to the CubeSat
 
     // The 0th byte must contain the femtosat address
-    txPacket.payload[0] = FEMTO_ADDRESS;
+    txPacket.payload[0] = femtoAddress;
     // The next byte tells the femtosat how many commands it must perform
-    txPacket.payload[1] = NUMBER_OF_COMMANDS;
+    txPacket.payload[1] = commandNumber;
     // Fill the next byte with the quaternion command
-    txPacket.payload[2] = COMMAND_ONE;
+    txPacket.payload[2] = COMMAND_QUAT;
     /* How long for the CubeSat to be in standby mode until
      * the next instruction
      */
-    txPacket.payload[3] = SLEEP_TIME;
+    txPacket.payload[3] = sleepTime;
     // Fill TX packet with quaternion data
     for (i = 4; i < 20; i++)
     {
@@ -300,16 +517,19 @@ void rfPacketSetup()
     /* If more commands are to be completed after the quaternion command,
      * they are initialised here
      */
-    txPacket.payload[20] = COMMAND_TWO;
-    txPacket.payload[21] = SLEEP_TIME;
-    txPacket.payload[22] = COMMAND_THREE;
-    txPacket.payload[23] = SLEEP_TIME;
-    // Fill the rest of the packet with 0s
-    for(i = 24; i < PAYLOAD_LENGTH; i++)
+    for(i = 20; i < PAYLOAD_LENGTH; i++)
     {
-        txPacket.payload[i] = 0;
+        // Even number indices are commands
+        if(!(i % 2))
+        {
+            txPacket.payload[i] = COMMAND_GLED;
+        }
+        // Odd number indices dictate sleep time
+        else
+        {
+            txPacket.payload[i] = sleepTime;
+        }
     }
-
     txPacket.len = PAYLOAD_LENGTH;
 
     txPacket.dstAddr[0] = CUBESAT_ADDRESS;
@@ -525,19 +745,17 @@ void dataRx(bool ackFlag)
     }
 }
 
-
 void *mainThread(void *arg0)
 {
-    // Setup display driver
-    displaySetup();
+    uartDisplaySetup();
 
 #if TIMING_TEST
     // Setup the GP timer
     timerSetup();
 #endif
 
-    Display_printf(display, 0, 0, "Starting ground station...\n");
-    rfPacketSetup();
+    userEntryCompile();
+//    Display_printf(display, 0, 0, "Starting ground station...\n");
 
     /* Enter infinite loop which performs all of the
      * necessary RF commands.
@@ -550,7 +768,6 @@ void *mainThread(void *arg0)
 
     while(1)
     {
-
 #if TIMING_TEST
         // Start the GP timer
         timerStart();
