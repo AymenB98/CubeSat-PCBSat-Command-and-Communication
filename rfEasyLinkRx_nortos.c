@@ -30,7 +30,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/** ============================================================================
+/** ======================================================
  *  @file       rfEasyLinkRx_nortos.c
  *
  *  @brief      Source file for CubeSat
@@ -38,7 +38,7 @@
  *  @author     Aymen Benylles
  *  @date       19/12/2020
  *
- *  ============================================================================
+ *  ======================================================
  */
 
 // Standard C Libraries
@@ -102,7 +102,7 @@ EasyLink_Params easyLinkParams; /*!< Use this to initialise EasyLink parameters 
 // RF variables
 EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}};
 EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}};
-uint32_t absTime;/*!< Used by RF core to time RF commands */
+uint32_t absTime; /*!< Used by RF core to time RF commands */
 EasyLink_Status result; /*!< Status of RF command */
 static bool bBlockTransmit = false; /*!< Flag raised when TX command is to be blocked */
 
@@ -530,46 +530,31 @@ void *mainThread(void *arg0)
 
     while(1)
     {
-        /*************************************************************************
-         *                                                                       *
-         *---------------------------->RX MODE                                   *
-         *                   Get command(s) from ground station                  *
-         *                                                                       *
-         *************************************************************************/
+        /* RX mode:
+         * Get commands from ground station
+         */
         commandRx();
 
         if(bBlockTransmit == false)
         {
-            /*************************************************************************
-             *                                                                       *
-             *<--------------------------TX MODE                                     *
-             *                   Send ack to ground station                          *
-             *                                                                       *
-             *************************************************************************/
+            /* TX mode:
+             * Send ack to ground station
+             */
             groundStationAckTx();
 
-            /*************************************************************************
-             *                                                                       *
-             *                           TX MODE------------------------------------>*
-             *                   Send commands to femtosat                           *
-             *                                                                       *
-             *************************************************************************/
+            /* TX mode:
+             * Send command(s) to femtosat
+             */
             commandTx();
 
-            /*************************************************************************
-             *                                                                       *
-             *                           RX MODE<------------------------------------*
-             *                   Get ack from femtosat                               *
-             *                                                                       *
-             *************************************************************************/
+            /* Rx mode:
+             * Get ack from femtosat
+             */
             femtosatAckRx();
 
-            /*************************************************************************
-             *                                                                       *
-             *<--------------------------TX MODE                                     *
-             *                   Send data to ground station                         *
-             *                                                                       *
-             *************************************************************************/
+            /* TX mode:
+             * Send data to ground station
+             */
             dataTx();
         }
     }
