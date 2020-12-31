@@ -70,21 +70,6 @@
 
 #include "rfEasyLinkEchoTx_nortos.h"
 
-// Define macros for constants used throughout code
-
-#define PAYLOAD_LENGTH   30 /*!< Number of data bytes being transmitted/received */
-
-#define RX_TIMEOUT   500 /*!< Time (ms) until RX operations timeout */
-
-#define CUBESAT_ADDRESS     0xCC /*!< CubeSat address used for address filtering */
-
-#define TIMING_TEST     0 /*!< Change to 1 when timing of code is to be performed */
-
-// Define the command ID for each command
-#define COMMAND_QUAT     0x1 /*!< Display quaternion sent from ground station to femtosat */
-#define COMMAND_GLED     0x2 /*!< Set green LED high for two seconds */
-#define COMMAND_THREE   0x3 /*!< Empty command */
-
 EasyLink_Params easyLinkParams;
 
 uint32_t absTime; /*!< Variable the RF core uses to time commands */
@@ -187,7 +172,6 @@ void timerSetup()
  */
 void timerStart()
 {
-    char timerStartError[] = "Error starting GP Timer.\n";
     GPTimerCC26XX_start(timerHandle);
     if(timerHandle == NULL)
     {
