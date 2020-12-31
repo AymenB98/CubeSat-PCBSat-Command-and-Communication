@@ -70,7 +70,6 @@
 
 #include "rfEasyLinkEchoTx_nortos.h"
 
-
 // Define macros for constants used throughout code
 
 #define PAYLOAD_LENGTH   30 /*!< Number of data bytes being transmitted/received */
@@ -79,22 +78,12 @@
 
 #define CUBESAT_ADDRESS     0xCC /*!< CubeSat address used for address filtering */
 
-#define FEMTO_ADDRESS      0xBB /*!< Femtosat address that CubeSat will use to select correct femtosat */
-
-#define NUMBER_OF_COMMANDS      3 /*!< The number of commands to be performed by femtosat */
-
-#define TIMING_TEST     1 /*!< Change to 1 when timing of code is to be performed */
+#define TIMING_TEST     0 /*!< Change to 1 when timing of code is to be performed */
 
 // Define the command ID for each command
 #define COMMAND_QUAT     0x1 /*!< Display quaternion sent from ground station to femtosat */
 #define COMMAND_GLED     0x2 /*!< Set green LED high for two seconds */
 #define COMMAND_THREE   0x3 /*!< Empty command */
-
-/* Time (s) the femtosat will be placed in
- * standby mode before it moves onto the next command
- */
-#define SLEEP_TIME      0 /*!< Time (s) femtosat will be placed in standby mode until it moves
-                            onto the next command */
 
 EasyLink_Params easyLinkParams;
 
@@ -104,6 +93,8 @@ EasyLink_TxPacket txPacket = {{0}, 0, 0, {0}}; /*!< Packet transmitted to CubeSa
 EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}}; /*!< Packet received from CubeSat */
 
 EasyLink_Status result; /*!< Status of each RF command */
+
+uint8_t femtoAddr;
 
 // Driver handles
 static PIN_Handle pinHandle;
@@ -185,7 +176,6 @@ void timerSetup()
     if(timerHandle == NULL)
     {
         uartWriteSimple(uartHandle, timerError, sizeof(timerError));
-//        Display_printf(display, 0, 0, "Error opening GP Timer.\n");
     }
 }
 
@@ -201,8 +191,7 @@ void timerStart()
     GPTimerCC26XX_start(timerHandle);
     if(timerHandle == NULL)
     {
-        uartWriteSimple(uartHandle, timerStartError, sizeof(timerStartError));
-//        Display_printf(display, 0, 0, "Error starting GP Timer.\n");
+        Display_printf(display, 0, 0, "Error starting GP Timer.\n");
     }
 }
 
@@ -237,12 +226,12 @@ void timerEnd()
  *  @return userErrorFlag   Flag raised when user makes an invalid input
  *
  */
-bool inputErrors(char userEntry, char entryType)
+bool inputErrors(char userEntry, Entry_Type entryType)
 {
     bool userErrorFlag = false;
     switch(entryType)
     {
-    case 'a':
+    case NUMBER_OF_COMMANDS:
         if((userEntry > 51) | (userEntry < 49))
         {
             Display_printf(display, 0, 0, "Invalid number of commands.\n");
@@ -251,7 +240,7 @@ bool inputErrors(char userEntry, char entryType)
             userErrorFlag = true;
         }
         break;
-    case 'b':
+    case COMMAND_SLEEP_TIME:
         if(userEntry > 57)
         {
             Display_printf(display, 0, 0, "Invalid sleep time.\n");
@@ -260,7 +249,7 @@ bool inputErrors(char userEntry, char entryType)
             userErrorFlag = true;
         }
         break;
-    case 'c':
+    case FEMTOSAT_ADDRESS:
         if(((int)userEntry < 97) | ((int)userEntry > 101))
         {
             Display_printf(display, 0, 0, "Invalid femtosat address.\n");
@@ -399,13 +388,19 @@ void userEntryCompile()
     // Now that UART driver is closed, setup display driver
     displaySetup();
 
+    /*
+     * Set global femtosat address variable so that display in
+     * dataRx function is correct
+     */
+    femtoAddr = femtoAddress;
+
     // Flags raised in the event of a user input error
     bool errorFlagCommands, errorFlagSleep, errorFlagAddress;
 
     // Test the user inputs to make sure they are valid
-    errorFlagCommands = inputErrors(numberOfCommands, 'a');
-    errorFlagSleep = inputErrors(sleepInput, 'b');
-    errorFlagAddress = inputErrors(femtoAddressInput, 'c');
+    errorFlagCommands = inputErrors(numberOfCommands, NUMBER_OF_COMMANDS);
+    errorFlagSleep = inputErrors(sleepInput, COMMAND_SLEEP_TIME);
+    errorFlagAddress = inputErrors(femtoAddressInput, FEMTOSAT_ADDRESS);
 
     // Only continue in the event of all three entries being valid
     if((!errorFlagCommands) && (!errorFlagSleep) && (!errorFlagAddress))
@@ -501,6 +496,7 @@ void rfPacketSetup(uint8_t commandNumber, uint8_t sleepTime, uint8_t femtoAddres
 
     // The 0th byte must contain the femtosat address
     txPacket.payload[0] = femtoAddress;
+
     // The next byte tells the femtosat how many commands it must perform
     txPacket.payload[1] = commandNumber;
     // Fill the next byte with the quaternion command
@@ -570,7 +566,7 @@ bool isPacketCorrect(EasyLink_RxPacket *rxp, EasyLink_TxPacket *txp)
  *  @return none
  *
  */
-void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte, uint8_t femtoAddr)
+void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte)
 {
     Display_printf(display, 0, 0, "0x%x femtosat reception status: ", femtoAddr);
     switch(statusByte)
@@ -706,7 +702,6 @@ void dataRx(bool ackFlag)
         rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT * 2);
 
         result = EasyLink_receive(&rxPacket);
-        uint8_t femtoAddr = FEMTO_ADDRESS;
 
         // No need to check the packet since this is a data transmission
         if (result == EasyLink_Status_Success)
@@ -715,7 +710,7 @@ void dataRx(bool ackFlag)
             PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
             PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
             // Display correct message about femtosat operation
-            femtosatStatusDisplay(rxPacket.payload[0], rxPacket.payload[1], femtoAddr);
+            femtosatStatusDisplay(rxPacket.payload[0], rxPacket.payload[1]);
 
             //Exit loop now that data has been received from CubeSat.
             ackFlag = false;
@@ -763,7 +758,7 @@ void *mainThread(void *arg0)
      * this while(1) can be removed.
      * In this case, the user must be aware of the fact that if this TX misses
      * the CubeSat, they can simply press the reset button on the board to
-     * resend the command(s).
+     * re-send the command(s).
      */
 
     while(1)
