@@ -784,4 +784,5 @@ void *mainThread(void *arg0)
         timerEnd();
 #endif
     }
+    return(NULL);
 }
