@@ -78,7 +78,8 @@ EasyLink_RxPacket rxPacket = {{0}, 0, 0, 0, 0, {0}}; /*!< Packet received from C
 
 EasyLink_Status result; /*!< Status of each RF command */
 
-uint8_t femtoAddr;
+uint8_t femtoAddr; /*!< Address of femtosatellite message is being sent to */
+bool receptionFlag; /*!< Flag raised if femtosatellite has received commands */
 
 // Driver handles
 static PIN_Handle pinHandle;
@@ -405,7 +406,7 @@ void rfPacketSetup(uint8_t commandNumber, uint8_t sleepTime, uint8_t femtoAddres
     EasyLink_Params_init(&easyLinkParams);
 
     // Set up desired quaternion to be sent to femtosat
-    float quatFloat[4] = {-1000.0, 2.0, 3.0, -4.0};
+    float quatFloat[4] = {1.0, 0.0, 0.0, 0.0};
 
     // Initialise variables to convert float into 8-bit integer array
 
@@ -559,12 +560,15 @@ void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte)
         //Remember to cast RSSI value from unsigned integer to signed integer.
         Display_printf(display, 0, 0, "Data received from CubeSat: %x -> %ddBm.\n", femtoAddr,
                        (int8_t)femtoRssi);
+        receptionFlag = true;
         break;
     case 1:
         Display_printf(display, 0, 0, "timeout error.\n");
+        receptionFlag = false;
         break;
     case 2:
         Display_printf(display, 0, 0, "error.\n");
+        receptionFlag = false;
         break;
     default:
         break;
@@ -744,7 +748,7 @@ void *mainThread(void *arg0)
      * re-send the command(s).
      */
 
-    while(1)
+    while(!receptionFlag)
     {
 #if TIMING_TEST
         // Start the GP timer
@@ -779,6 +783,5 @@ void *mainThread(void *arg0)
         // Stop the timer, display the value and close the driver
         timerEnd();
 #endif
-
     }
 }
