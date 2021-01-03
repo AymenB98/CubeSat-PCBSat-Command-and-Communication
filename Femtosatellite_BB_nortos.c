@@ -340,7 +340,7 @@ void *mainThread(void *arg0)
     /*
      * If you wish to use a frequency other than the default, use
      * the following API:
-     * EasyLink_setFrequency(868000000);
+     * EasyLink_setFrequency(433000);
      */
 
     while(1)

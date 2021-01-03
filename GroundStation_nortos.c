@@ -472,7 +472,7 @@ void rfPacketSetup(uint8_t commandNumber, uint8_t sleepTime, uint8_t femtoAddres
     /*
      * If you wish to use a frequency other than the default (e.g. 433MHz), use
      * the following API:
-     * EasyLink_setFrequency(433000000);
+     * EasyLink_setFrequency(433000);
      */
 
     // Create the packet being sent to the CubeSat

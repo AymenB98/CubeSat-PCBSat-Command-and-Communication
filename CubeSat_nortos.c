@@ -520,10 +520,10 @@ void *mainThread(void *arg0)
     /*
      * If you wish to use a frequency other than the default, use
      * the following API:
-     * EasyLink_setFrequency(868000000);
+     * EasyLink_setFrequency(868000);
      *
      * When the final PC/104 board has been made for this project,
-     * this must be set to 433MHz (i.e. 433000000).
+     * this must be set to 433MHz (i.e. 433000).
      * This version of the code uses 868MHz since the dev kit for
      * the CC1310 has an 868MHz antenna, not a 433MHz antenna.
      */
