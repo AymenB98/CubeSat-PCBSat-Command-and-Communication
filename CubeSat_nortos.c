@@ -164,7 +164,7 @@ bool sdSetup(int8_t rssi, uint8_t errorCode)
     bool sdOpFlag = 0;
     SD_init();
 
-    Display_printf(display, 0, 0, "Starting the SD setup...\n");
+    Display_printf(display, 0, 0, "Starting the microSD setup...\n");
 
     /* Initialise the array to write to the SD card */
     int i;
@@ -180,7 +180,7 @@ bool sdSetup(int8_t rssi, uint8_t errorCode)
     sdHandle = SD_open(Board_SD0, NULL);
     if (sdHandle == NULL)
     {
-        Display_printf(display, 0, 0, "Error starting the SD card.\n");
+        Display_printf(display, 0, 0, "Error starting the microSD card.\n");
         //Raise flag when error occurs.
         sdOpFlag = 1;
     }
@@ -188,7 +188,7 @@ bool sdSetup(int8_t rssi, uint8_t errorCode)
     result = SD_initialize(sdHandle);
     if (result != SD_STATUS_SUCCESS)
     {
-        Display_printf(display, 0, 0, "Error initialising the SD card.\n");
+        Display_printf(display, 0, 0, "Error initialising the microSD card.\n");
         //Raise flag when error occurs.
         sdOpFlag = 1;
     }
@@ -218,21 +218,21 @@ bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure)
     sectors = (sizeof(sdPacket) + sectorSize - 1) / sectorSize;
 
 #if (WRITEENABLE)
-    Display_printf(display, 0, 0, "Writing the array...\n");
+    Display_printf(display, 0, 0, "Writing to microSD card...\n");
 
     result = SD_write(sdHandle, sdPacket, STARTINGSECTOR, sectors);
     if (result != SD_STATUS_SUCCESS)
     {
-        Display_printf(display, 0, 0, "Error writing to the SD card\n");
+        Display_printf(display, 0, 0, "Error writing to the microSD card\n");
         sdFailure = 1;
     }
 #endif
 
-    Display_printf(display, 0, 0, "Reading the array...\n");
+    Display_printf(display, 0, 0, "Reading microSD card...\n");
     result = SD_read(sdHandle, cpyBuff, STARTINGSECTOR, sectors);
     if (result != SD_STATUS_SUCCESS)
     {
-        Display_printf(display, 0, 0, "Error reading from the SD card\n");
+        Display_printf(display, 0, 0, "Error reading from the microSD card\n");
         sdFailure = 1;
     }
 
@@ -244,12 +244,12 @@ bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure)
         {
             sdFailure = 1;
             Display_printf(display, 0, 0,
-                    "Data read from SD card differed from expected value\n");
+                    "Data read from microSD card differed from expected value\n");
             Display_printf(display, 0, 0,
                     "    Expected value for index %d: %d, got %d\n", i,
                     sdPacket[i], cpyBuff[i]);
             Display_printf(display, 0, 0, "Run the example with WRITEENABLE "
-                    "= 1 to write expected values to the SD card\n");
+                    "= 1 to write expected values to the microSD card\n");
             break;
         }
     }
@@ -257,9 +257,9 @@ bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure)
     if (i == BUFFSIZE)
     {
         Display_printf(display, 0, 0,
-                "Data read from SD card matched expected values\n");
+                "microSD write successful.\n");
         //Make sure to convert from unsigned char to signed integer to display RSS correctly.
-        Display_printf(display, 0, 0, "Data from SD card: %d\n", (int8_t)sdPacket[0]);
+        Display_printf(display, 0, 0, "Data from microSD card: %d\n", (int8_t)sdPacket[0]);
     }
 
     SD_close(sdHandle);
