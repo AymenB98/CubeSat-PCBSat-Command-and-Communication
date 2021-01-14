@@ -71,13 +71,10 @@
 
 #define GROUND_ADDRESS    0xFF /*!< Ground station address for address filtering */
 
-// Set RX to timeout after 0.5s(500ms)
 #define RX_TIMEOUT  500 /*!< RX command times out after 500ms */
 
-// Buffer size used for the file copy process
 #define BUFFSIZE 1024 /*!< Buffer size for microSD operations */
 
-// Starting sector to write/read to
 #define STARTINGSECTOR 0 /*!< Starting sector to write to/read from */
 
 #define BYTESPERKILOBYTE 1024 /*!< Bytes in a kilobyte */
@@ -124,24 +121,24 @@ PIN_Config pinTable[] = {
  */
 void driverSetup()
 {
-    /* Open LED pins */
+    // Open LED pins/
     pinHandle = PIN_open(&pinState, pinTable);
     if (pinHandle == NULL)
     {
         while(1);
     }
 
-    /* Clear LED pins */
+    // Clear LED pins
     PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
     PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
 
     Display_init();
 
-    /* Open the display for output */
+    // Open the display for output
     display = Display_open(Display_Type_UART, NULL);
     if (display == NULL)
     {
-        /* Failed to open display driver */
+        // Failed to open display driver
         while (1);
     }
 
@@ -160,43 +157,42 @@ void driverSetup()
 bool sdSetup(int8_t rssi, uint8_t errorCode)
 {
     int_fast8_t result;
-    //Flag raised in the even of an SD operation failure.
+    // Flag raised in the even of an SD operation failure.
     bool sdOpFlag = 0;
     SD_init();
 
     Display_printf(display, 0, 0, "Starting the microSD setup...\n");
 
-    /* Initialise the array to write to the SD card */
+    // Initialise the array to write to the SD card
     int i;
     sdPacket[0] = rssi;
     sdPacket[1] = errorCode;
-    //Fill the rest of the array with the ground address.
+    // Fill the rest of the array with the ground address.
     for (i = 2; i < BUFFSIZE; i++)
     {
         sdPacket[i] = GROUND_ADDRESS;
     }
 
-    /* Mount and register the SD Card */
+    // Mount and register the SD Card
     sdHandle = SD_open(Board_SD0, NULL);
     if (sdHandle == NULL)
     {
         Display_printf(display, 0, 0, "Error starting the microSD card.\n");
-        //Raise flag when error occurs.
+        // Raise flag when error occurs.
         sdOpFlag = 1;
     }
 
     result = SD_initialize(sdHandle);
     if (result != SD_STATUS_SUCCESS)
     {
-        Display_printf(display, 0, 0, "Error initialising the microSD card.\n");
-        //Raise flag when error occurs.
+        Display_printf(display, 0, 0, "Error initialising microSD card.\n");
+        // Raise flag when error occurs.
         sdOpFlag = 1;
     }
-    //Perform write operation and track it's success.
+    // Perform write operation and track it's success.
     sdOpFlag = sdWrite(sdHandle, result, sdOpFlag);
     return sdOpFlag;
 }
-
 
 /**
  *  @brief  Write to (micro)SD card and check operation.
@@ -214,7 +210,7 @@ bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure)
 
     sectorSize = SD_getSectorSize(sdHandle);
 
-    /* Calculate number of sectors taken up by the array by rounding up */
+    // Calculate number of sectors taken up by the array by rounding up
     sectors = (sizeof(sdPacket) + sectorSize - 1) / sectorSize;
 
 #if (WRITEENABLE)
@@ -232,7 +228,7 @@ bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure)
     result = SD_read(sdHandle, cpyBuff, STARTINGSECTOR, sectors);
     if (result != SD_STATUS_SUCCESS)
     {
-        Display_printf(display, 0, 0, "Error reading from the microSD card\n");
+        Display_printf(display, 0, 0, "Error reading from microSD card\n");
         sdFailure = 1;
     }
 
@@ -244,7 +240,7 @@ bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure)
         {
             sdFailure = 1;
             Display_printf(display, 0, 0,
-                    "Data read from microSD card differed from expected value\n");
+                    "Data read from microSD differed from expected value\n");
             Display_printf(display, 0, 0,
                     "    Expected value for index %d: %d, got %d\n", i,
                     sdPacket[i], cpyBuff[i]);
@@ -258,8 +254,9 @@ bool sdWrite(SD_Handle sdHandle, int_fast8_t result, bool sdFailure)
     {
         Display_printf(display, 0, 0,
                 "microSD write successful.\n");
-        //Make sure to convert from unsigned char to signed integer to display RSS correctly.
-        Display_printf(display, 0, 0, "Data from microSD card: %d\n", (int8_t)sdPacket[0]);
+        // Make sure to convert from unsigned char to signed integer to display RSS correctly.
+        Display_printf(display, 0, 0, "Data from microSD card: %d\n",
+                       (int8_t)sdPacket[0]);
     }
 
     SD_close(sdHandle);
@@ -281,11 +278,13 @@ void commandRx()
     if (result == EasyLink_Status_Success)
     {
         // Toggle LED2 to indicate RX, clear LED1
-        PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2,
+                           !PIN_getOutputValue(Board_PIN_LED2));
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
         // Copy contents of RX packet to TX packet
         memcpy(&txPacket.payload, &rxPacket.payload, rxPacket.len);
-        Display_printf(display, 0, 0, "Command received from ground station.\n");
+        Display_printf(display, 0, 0,
+                       "Command received from ground station.\n");
         // Permit echo transmission
         bBlockTransmit = false;
     }
@@ -294,8 +293,9 @@ void commandRx()
         // Set LED1 and clear LED2 to indicate timeout
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-        //Notify user that CubeSat has not received command yet.
-        Display_printf(display, 0, 0, "Timeout error: waiting for command from ground station...\n");
+        // Notify user that CubeSat has not received command yet
+        Display_printf(display, 0, 0,
+                       "Timeout error: waiting for command from ground station...\n");
         // Block echo transmission
         bBlockTransmit = true;
     }
@@ -304,8 +304,9 @@ void commandRx()
         // Set LED1 and clear LED2 to indicate timeout
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
-        //Notify user that CubeSat has not received command yet.
-        Display_printf(display, 0, 0, "Error receiving command from ground station.\n");
+        // Notify user that CubeSat has not received command yet.
+        Display_printf(display, 0, 0,
+                       "Error receiving command from ground station.\n");
         // Block echo transmission
         bBlockTransmit = true;
     }
@@ -336,7 +337,8 @@ void groundStationAckTx()
     if (result == EasyLink_Status_Success)
     {
         // Toggle LED2 to indicate Echo TX, clear LED1
-        PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2,
+                           !PIN_getOutputValue(Board_PIN_LED2));
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
         Display_printf(display, 0, 0, "Ack sent to ground station.\n");
     }
@@ -363,7 +365,8 @@ void commandTx()
     result = EasyLink_transmit(&txPacket);
     if (result == EasyLink_Status_Success)
     {
-        PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2,
+                           !PIN_getOutputValue(Board_PIN_LED2));
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
         Display_printf(display, 0, 0, "CubeSat TX to femtosat successful.\n");
     }
@@ -384,7 +387,7 @@ void commandTx()
  */
 void femtosatAckRx()
 {
-    // Switch to Receiver, set a timeout interval of 500ms */
+    // Switch to Receiver, set a timeout interval of 500ms
     rxPacket.absTime = 0;
     rxPacket.rxTimeout = EasyLink_ms_To_RadioTime(RX_TIMEOUT);
     uint8_t error;
@@ -401,11 +404,13 @@ void femtosatAckRx()
         // Successful RX.
         error = 0;
         // Toggle LED1, clear LED2 to indicate Echo RX
-        PIN_setOutputValue(pinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
+        PIN_setOutputValue(pinHandle, Board_PIN_LED1,
+                           !PIN_getOutputValue(Board_PIN_LED1));
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
 
         Display_printf(display, 0, 0, "Ack received from femtosat.\n");
-        Display_printf(display, 0, 0, "%x RSSI: %ddBm\n", txPacket.dstAddr[0], rxPacket.rssi);
+        Display_printf(display, 0, 0, "%x RSSI: %ddBm\n", txPacket.dstAddr[0],
+                       rxPacket.rssi);
         // Log successful exchange in microSD card
         sdFlag = sdSetup(rxPacket.rssi, error);
     }
@@ -417,7 +422,7 @@ void femtosatAckRx()
         Display_printf(display, 0, 0, "Device timed out before ack received from femtosat.\n");
         // Log timeout error in microSD card.
         error = 1;
-        // There will be no RSSI since RX not successful, pass default value to function
+        // There will be no RSSI since RX not successful, pass default value
         sdFlag = sdSetup(0, error);
     }
     else
@@ -444,9 +449,9 @@ void femtosatAckRx()
     // If flag is raised, use locally stored values
     else
     {
-        //RSSI value
+        // RSSI value
         txPacket.payload[0] = (uint8_t)rxPacket.rssi;
-        //Status of RSSI operation
+        // Status of RSSI operation
         txPacket.payload[1] = error;
     }
 }
@@ -463,9 +468,11 @@ void dataTx()
     if (result == EasyLink_Status_Success)
     {
         // Toggle LED2 and clear LED 1 to indicate success
-        PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+        PIN_setOutputValue(pinHandle, Board_PIN_LED2,
+                           !PIN_getOutputValue(Board_PIN_LED2));
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-        Display_printf(display, 0, 0, "CubeSat TX to ground station successful.\n");
+        Display_printf(display, 0, 0,
+                       "CubeSat TX to ground station successful.\n");
     }
     else
     {
@@ -518,43 +525,31 @@ void *mainThread(void *arg0)
     }
 
     /*
-     * If you wish to use a frequency other than the default, use
-     * the following API:
-     * EasyLink_setFrequency(868000);
-     *
      * When the final PC/104 board has been made for this project,
      * this must be set to 433MHz (i.e. 433000).
      * This version of the code uses 868MHz since the dev kit for
      * the CC1310 has an 868MHz antenna, not a 433MHz antenna.
+     * The following should be used to change the frequency..
+     * EasyLink_setFrequency(433000);
      */
 
     while(1)
     {
-        /* RX mode:
-         * Get commands from ground station
-         */
+        // RX mode: get commands from ground station
         commandRx();
 
         if(bBlockTransmit == false)
         {
-            /* TX mode:
-             * Send ack to ground station
-             */
+            // TX mode: send ack to ground station
             groundStationAckTx();
 
-            /* TX mode:
-             * Send command(s) to femtosat
-             */
+            // TX mode: send command(s) to femtosat
             commandTx();
 
-            /* Rx mode:
-             * Get ack from femtosat
-             */
+            // Rx mode: get ack from femtosat
             femtosatAckRx();
 
-            /* TX mode:
-             * Send data to ground station
-             */
+            // TX mode: Send data to ground station
             dataTx();
         }
     }
