@@ -557,7 +557,7 @@ void femtosatStatusDisplay(uint8_t femtoRssi, uint8_t statusByte)
     {
     case 0:
         Display_printf(display, 0, 0, "successful.\n");
-        //Remember to cast RSSI value from unsigned integer to signed integer.
+        // Remember to cast RSSI value from unsigned integer to signed integer.
         Display_printf(display, 0, 0, "Data received from CubeSat: %x -> %ddBm.\n", femtoAddr,
                        (int8_t)femtoRssi);
         receptionFlag = true;
@@ -699,7 +699,7 @@ void dataRx(bool ackFlag)
             // Display correct message about femtosat operation
             femtosatStatusDisplay(rxPacket.payload[0], rxPacket.payload[1]);
 
-            //Exit loop now that data has been received from CubeSat.
+            // Exit loop now that data has been received from CubeSat.
             ackFlag = false;
         }
         else if (result == EasyLink_Status_Rx_Timeout)

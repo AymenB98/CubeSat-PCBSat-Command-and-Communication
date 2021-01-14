@@ -124,11 +124,11 @@ void displaySetup()
 {
     Display_init();
 
-    /* Open the display for output */
+    // Open the display for output
     display = Display_open(Display_Type_UART, NULL);
     if (display == NULL)
     {
-        /* Failed to open display driver */
+        // Failed to open display driver
         while (1);
     }
 }
@@ -145,22 +145,22 @@ void commandRx()
     EasyLink_receive(&rxPacket);
     if (result == EasyLink_Status_Success)
     {
-        /* Toggle LED2 to indicate RX, clear LED1 */
+        // Toggle LED2 to indicate RX, clear LED1
         PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
-        /* Copy contents of RX packet to TX packet */
+        // Copy contents of RX packet to TX packet
         memcpy(&txPacket.payload, &rxPacket.payload, rxPacket.len);
-        /* Permit echo transmission */
+        // Permit echo transmission
         bBlockTransmit = false;
         Display_printf(display, 0, 0, "Packet received from CubeSat.\n");
     }
     else
     {
-        /* Set LED1 and clear LED2 to indicate error */
+        // Set LED1 and clear LED2 to indicate error
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
         Display_printf(display, 0, 0, "Packet not received from CubeSat.\n");
-        /* Block echo transmission */
+        // Block echo transmission
         bBlockTransmit = true;
     }
 }
@@ -195,12 +195,12 @@ void ackTx()
 
     if(result == EasyLink_Status_Success)
     {
-        /* Toggle LED2 to indicate Echo TX, clear LED1 */
+        // Toggle LED2 to indicate Echo TX, clear LED1
         PIN_setOutputValue(pinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
         Display_printf(display, 0, 0, "Ack sent to CubeSat.\n");
 
-        //Perform command(s) sent by CubeSat.
+        // Perform command(s) sent by CubeSat.
         uint8_t i;
         uint8_t count = 0;
         uint8_t commands = rxPacket.payload[1];
@@ -214,7 +214,7 @@ void ackTx()
         {
             for(i = 2; i < loopSize; i++)
             {
-                //Command IDs are only found on every other element (starting from element 2)
+                // Command IDs are only found on every other element (starting from element 2)
                 if(!(i % 2))
                 {
                     Display_printf(display, 0, 0, "Performing command: %x...\n", rxPacket.payload[i]);
@@ -245,7 +245,7 @@ void ackTx()
     }
     else
     {
-        /* Set LED1 and clear LED2 to indicate error */
+        // Set LED1 and clear LED2 to indicate error
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
         PIN_setOutputValue(pinHandle, Board_PIN_LED2, 0);
         Display_printf(display, 0, 0, "Femtosat error.\n");
@@ -274,7 +274,7 @@ void dummyCommand(uint8_t commandID, uint8_t rxPacket[30], uint8_t sleepTime)
         displayQuat(rxPacket);
         break;
     case 0x2:
-        //Set green LED high for 2 seconds.
+        // Set green LED high for 2 seconds.
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 1);
         sleep(2);
         PIN_setOutputValue(pinHandle, Board_PIN_LED1, 0);
@@ -314,7 +314,7 @@ void displayQuat(uint8_t rxPacket[30])
         quatFloat[i] = quatInt[i] / 1000;
     }
 
-    //Display the final, recovered quaternion to the user
+    // Display the final, recovered quaternion to the user
     Display_printf(display, 0, 0, "Quaternion: {%f, %f, %f, %f}\n",
                    quatFloat[0], quatFloat[1], quatFloat[2], quatFloat[3]);
 
