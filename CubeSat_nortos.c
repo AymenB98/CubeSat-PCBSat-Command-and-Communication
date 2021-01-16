@@ -1,4 +1,5 @@
-/*
+/** ======================================================
+ *
  * Copyright (c) 2017-2018, Texas Instruments Incorporated
  * All rights reserved.
  *
@@ -28,9 +29,7 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
-/** ======================================================
+ *
  *  @file       CubeSat_nortos.c
  *
  *  @brief      Source file for CubeSat
@@ -529,7 +528,7 @@ void *mainThread(void *arg0)
      * this must be set to 433MHz (i.e. 433000).
      * This version of the code uses 868MHz since the dev kit for
      * the CC1310 has an 868MHz antenna, not a 433MHz antenna.
-     * The following should be used to change the frequency..
+     * The following should be used to change the frequency:
      * EasyLink_setFrequency(433000);
      */
 
