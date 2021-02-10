@@ -1,0 +1,70 @@
+\t (00:00:07) allegro 17.2 S055 Windows SPB 64-bit Edition
+\t (00:00:07)     Journal start - Wed Feb 10 15:53:28 2021
+\t (00:00:07)         Host=JWS544-60 User=2258021B Pid=12640 CPUs=8
+\t (00:00:07) CmdLine= c:\cadence\spb_17.2\tools\bin\allegro.exe H:\Submission files\Allegro\comms_command_pc104_revK.brd
+\t (00:00:07) 
+   (00:00:07) Loading axlcore.cxt 
+\t (00:00:08) Opening existing design...
+\i (00:00:08) QtSignal SPBFoldDockArea FoldAreaTabWidget currentChanged comms_command_pc104_revK
+\d (00:00:08) Design opened: H:/Submission files/Allegro/comms_command_pc104_revK.brd
+\i (00:00:08) trapsize 4919
+\i (00:00:08) trapsize 5120
+\i (00:00:08) trapsize 5339
+\i (00:00:08) trapsize 5120
+\i (00:00:08) trapsize 4919
+\i (00:00:08) trapsize 4919
+\i (00:00:09) generaledit 
+\i (00:00:11) zoom in 1 
+\i (00:00:11) setwindow pcb
+\i (00:00:11) zoom in 1115.28 3186.11
+\i (00:00:11) trapsize 2459
+\i (00:00:11) zoom in 1 
+\i (00:00:11) setwindow pcb
+\i (00:00:11) zoom in 1115.28 3186.12
+\i (00:00:11) trapsize 1230
+\i (00:00:11) zoom in 1 
+\i (00:00:11) setwindow pcb
+\i (00:00:11) zoom in 1115.28 3186.12
+\i (00:00:11) trapsize 615
+\i (00:00:12) zoom out 1 
+\i (00:00:12) setwindow pcb
+\i (00:00:12) zoom out 1628.09 3033.64
+\i (00:00:12) trapsize 1230
+\i (00:00:12) zoom out 1 
+\i (00:00:12) setwindow pcb
+\i (00:00:12) zoom out 1628.09 3033.64
+\i (00:00:12) trapsize 2459
+\i (00:00:12) zoom out 1 
+\i (00:00:12) setwindow pcb
+\i (00:00:12) zoom out 1628.08 3033.63
+\i (00:00:12) trapsize 4919
+\i (00:00:12) zoom out 1 
+\i (00:00:12) setwindow pcb
+\i (00:00:12) zoom out 5217.71 1966.20
+\i (00:00:12) trapsize 4919
+\i (00:00:13) zoom in 1 
+\i (00:00:13) setwindow pcb
+\i (00:00:13) zoom in 2522.11 1749.77
+\i (00:00:13) trapsize 2459
+\i (00:00:13) zoom in 1 
+\i (00:00:13) setwindow pcb
+\i (00:00:13) zoom in 2522.11 1749.77
+\i (00:00:13) trapsize 1230
+\i (00:00:13) zoom in 1 
+\i (00:00:13) setwindow pcb
+\i (00:00:13) zoom in 2522.12 1749.78
+\i (00:00:13) trapsize 615
+\i (00:00:14) zoom out 1 
+\i (00:00:14) setwindow pcb
+\i (00:00:14) zoom out 2529.49 1730.11
+\i (00:00:14) trapsize 1230
+\i (00:00:14) zoom out 1 
+\i (00:00:14) setwindow pcb
+\i (00:00:14) zoom out 2529.50 1730.11
+\i (00:00:14) trapsize 2459
+\i (00:00:18) QtSignal CVPLayerGrid CVPBoxAllTop clicked false
+\i (00:00:19) QtSignal CVPLayerGrid CVPBoxAllTop clicked true
+\i (00:00:20) QtSignal CVPLayerGrid CVPBoxAllBottom clicked false
+\i (00:00:21) QtSignal CVPLayerGrid CVPBoxAllBottom clicked true
+\i (00:06:04) exit 
+\t (00:06:04)     Journal end - Wed Feb 10 15:59:25 2021
